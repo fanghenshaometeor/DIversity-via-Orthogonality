@@ -138,31 +138,31 @@ def main():
 
     # ======== initialize net
     if args.model == 'vgg11':
-        from model.ompc_vgg import vgg11_bn
+        from model.dio_vgg import vgg11_bn
         backbone, head = vgg11_bn(embedding_size=512, num_classes=args.num_classes, num_classifiers=args.num_heads)
     elif args.model == 'vgg13':
-        from model.ompc_vgg import vgg13_bn
+        from model.dio_vgg import vgg13_bn
         backbone, head = vgg13_bn(embedding_size=512, num_classes=args.num_classes, num_classifiers=args.num_heads)
     elif args.model == 'vgg16':
-        from model.ompc_vgg import vgg16_bn
+        from model.dio_vgg import vgg16_bn
         backbone, head = vgg16_bn(embedding_size=512, num_classes=args.num_classes, num_classifiers=args.num_heads)
     elif args.model == 'vgg19':
-        from model.ompc_vgg import vgg19_bn
+        from model.dio_vgg import vgg19_bn
         backbone, head = vgg19_bn(embedding_size=512, num_classes=args.num_classes, num_classifiers=args.num_heads)
     elif args.model == 'resnet20':
-        from model.ompc_resnet_v1 import resnet20
+        from model.dio_resnet_v1 import resnet20
         backbone, head = resnet20(num_classes=args.num_classes, num_classifiers=args.num_heads)
     elif args.model == 'resnet32':
-        from model.ompc_resnet_v1 import resnet32
+        from model.dio_resnet_v1 import resnet32
         backbone, head = resnet32(num_classes=args.num_classes, num_classifiers=args.num_heads)
     elif args.model == 'wrn28x5':
-        from model.ompc_wideresnet import wideresnet_28_5
+        from model.dio_wideresnet import wideresnet_28_5
         backbone, head = wideresnet_28_5(num_classes=args.num_classes, num_classifiers=args.num_heads)
     elif args.model == 'wrn34x10':
-        from model.ompc_wideresnet import wideresnet_34_10
+        from model.dio_wideresnet import wideresnet_34_10
         backbone, head = wideresnet_34_10(num_classes=args.num_classes, num_classifiers=args.num_heads)
     elif args.model == 'wrn28x10':
-        from model.ompc_wideresnet import wideresnet_28_10
+        from model.dio_wideresnet import wideresnet_28_10
         backbone, head = wideresnet_28_10(num_classes=args.num_classes, num_classifiers=args.num_heads)
     else:
         assert False, "Unknown model : {}".format(args.model)
