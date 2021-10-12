@@ -13,7 +13,6 @@ import torch.utils.data as data
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data.distributed import DistributedSampler
 
 import os
 import ast
@@ -235,25 +234,23 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
     avg_loss_margin_adv = 0.0
 
     for batch_idx, (b_data, b_label) in enumerate(trainloader):
-        # print("current processing batch-%d"%batch_idx)
         
         # -------- move to gpu
         b_data, b_label = b_data.cuda(), b_label.cuda()
 
-        # -------- forward anc compute loss
+        # -------- forward and compute loss
         total_loss = .0
 
+        # -------- compute CROSS ENTROPY loss
         loss_ce = .0
         all_logits = head(backbone(b_data), 'all')
         for idx in range(args.num_heads):
             logits = all_logits[idx]
             loss = criterion(logits, b_label)
-            loss_ce += 1/args.num_heads * loss                                          # sum the weighted loss for backward propagation
-
-            # avg_loss_ce[idx] = avg_loss_ce[idx] + reduce_tensor(loss.data).item()       # save the loss value
+            loss_ce += 1/args.num_heads * loss                      # sum the weighted loss for backward propagation
             avg_loss_ce[idx] = avg_loss_ce[idx] + loss.item()       # save the loss value
     
-        # -------- compute the orthogonal constraint
+        # -------- compute the ORTHOGONALITY constraint
         loss_ortho = .0
         if args.num_heads > 1:
             loss_ortho = head._orthogonal_costr()
@@ -263,7 +260,7 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
             loss_ortho = 0
         
         # -------- find correctly-classified samples-clfs (x, clf-i)
-        # -------- compute distance/margin
+        # -------- compute MARGIN loss
         # -------- 对每条路径遍历
         loss_margin = .0
         for idx in range(args.num_heads):           # 对每条路径
@@ -274,26 +271,19 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
             if b_corr_idx.any() == False:           # 如果当前路径对 batch 数据全部预测错误，即，b_data_idx 全部 false
                 continue
 
-            
             b_logits_correct = logits[b_corr_idx,:]                                                         # 依据索引，读取当前路径预测正确的那些数据的 logits
             b_corr_num = b_logits_correct.size(0)
-            # print(b_logits_correct.size())
             b_logits_correct_max, _ = torch.max(b_logits_correct, 1)                                        # 获取预测正确数据的 logits 的最大值，即，groundtruth 所在类的 logits
-            # print(b_logits_correct_max.size())
             b_logits_correct_max = b_logits_correct_max.unsqueeze(1).expand(b_corr_num, args.num_classes)   # 最大值复制
 
             hyperplane_norm = head._compute_l2_norm_specified(idx)                                              # 获取当前路径的超平面的 l2 norm
             hyperplane_norm = hyperplane_norm.repeat(b_corr_num,1)                                              # 数据复制，方便计算距离
 
             b_distance = torch.div(torch.abs(b_logits_correct-b_logits_correct_max), hyperplane_norm)           # 计算到最大值的 distance，这其中存在 0 值 
-            # print(b_distance.size())
-            # print(b_distance)
             b_distance = torch.where(b_distance>0, b_distance, torch.tensor(1000.0).cuda())                     # 去除 0 值
             b_margin, _ = torch.min(b_distance, 1)                                                              # 获取 margin
 
             loss_margin += (args.tau - b_margin).clamp(min=0).mean()                # 计算 margin loss
-
-            # avg_loss_margin += reduce_tensor(loss_margin.data).item()
             avg_loss_margin += loss_margin.item()
         
         total_loss = loss_ce + args.alpha * loss_ortho + args.beta * loss_margin
@@ -328,7 +318,6 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
         total_loss.backward()
         optim.step()
 
-        # print("current processing batch-%d END."%batch_idx)
         # -------- training with adversarial examples
         if args.adv_train and epoch >= args.adv_delay:
             backbone.eval()
@@ -343,8 +332,6 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
                 logits = all_logits[idx]
                 loss = criterion(logits, b_label)
                 loss_ce += 1/args.num_heads * loss         # sum the weighted loss for backward propagation 
-
-                # avg_loss_ce_adv[idx] = avg_loss_ce_adv[idx] + reduce_tensor(loss.data).item()       # save the loss value 
                 avg_loss_ce_adv[idx] = avg_loss_ce_adv[idx] + loss.item()       # save the loss value 
             
             # ------- compute the orthogonal constraint
@@ -382,8 +369,6 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
                 b_margin, _ = torch.min(b_distance, 1)                                                              # 获取 margin
 
                 loss_margin += (args.tau_adv - b_margin).clamp(min=0).mean()                # 计算 margin loss
-
-                # avg_loss_margin_adv += reduce_tensor(loss_margin.data).item()
                 avg_loss_margin_adv += loss_margin.item()
             
             total_loss = loss_ce + args.alpha * loss_ortho + args.beta * loss_margin          
