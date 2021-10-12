@@ -322,7 +322,7 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
         if args.adv_train and epoch >= args.adv_delay:
             backbone.eval()
             head.eval()
-            perturbed_data, _ = pgd_attack(backbone, head, b_data, b_label, eps=0.031, alpha=0.01, iters=7)
+            perturbed_data = pgd_attack(backbone, head, b_data, b_label, eps=0.031, alpha=0.01, iters=7)
             backbone.train()
             head.train()
 
