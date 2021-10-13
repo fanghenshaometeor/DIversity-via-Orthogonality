@@ -2,6 +2,43 @@
 
 This repo provides the PyTorch codes of the paper [*Towards Robust Neural Networks Via Orthogonal Diversity*](https://arxiv.org/abs/2010.12190).
 
+## What
+
+A brief description for the files in this repo:
+
+- `train.sh` \& `train.py` training scripts
+- `attack_dio.sh` \& `attack_dio.py` attacking scripts
+- `attackers.py` attacking functions
+
+## How
+
+A brief description on how to train and attack the model.
+
+### Training
+
+To reproduce the training, users can run the `train.sh` shell scripts directly on the command line.
+```
+sh train.sh
+```
+
+Detailed training settings (model, data set and whether to perform adversarial training) and hyper-parameter ($\alpha,\beta,\tau,\tau_a$ and number of heads) could be specified freely in the `train.sh` script.
+
+In the following table, we list the hyper-parameters used in training the models described in the paper.
+
+### attacking
+
+To attack the model, users can run the `attack_dio.sh` shell scripts directly on the command line.
+```
+sh attack_dio.sh
+```
+
+Detailed attacking settings could be specified freely by commenting some lines in the `attack_dio.sh` script.
+
+## 
+
+If u have problems about the codes or paper, u could contact me (fanghenshao@sjtu.edu.cn) or raise issues in GitHub.
+
+If u find the codes useful, welcome to fork and star this repo and cite our paper! :)
 <!-- # Dependencies
 - python 3.6 (miniconda)
 - PyTorch 1.5.0
