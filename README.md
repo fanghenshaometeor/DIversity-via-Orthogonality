@@ -39,6 +39,15 @@ Detailed attacking settings could be specified freely by commenting some lines i
 If u have problems about the codes or paper, u could contact me (fanghenshao@sjtu.edu.cn) or raise issues in GitHub.
 
 If u find the codes useful, welcome to fork and star this repo and cite our paper! :)
+
+```
+@article{fang2020towards,
+  title={Towards Robust Neural Networks via Orthogonal Diversity},
+  author={Fang, Kun and Tao, Qinghua and Wu, Yingwen and Li, Tao and Cai, Jia and Cai, Feipeng and Huang, Xiaolin and Yang, Jie},
+  journal={arXiv preprint arXiv:2010.12190},
+  year={2020}
+}
+```
 <!-- # Dependencies
 - python 3.6 (miniconda)
 - PyTorch 1.5.0
