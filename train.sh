@@ -1,12 +1,5 @@
 # -------- model:vgg16/resnet18 -----------------
-# model=vgg11
-# model=vgg13
-model=vgg16
-# model=vgg19
-# model=resnet20
-# model=resnet32
-# model=wrn28x5
-# model=wrn28x10
+arch=preactresnet18
 # -------- hyper-parameters ---------------------
 alpha=0.1
 beta=0.1
@@ -51,10 +44,10 @@ adv_train=True
 # -----------------------------------------------
 
 CUDA_VISIBLE_DEVICES=3 python train.py \
-    --model ${model} \
+    --arch ${arch} \
+    --num_heads ${num_heads} \
     --alpha ${alpha} \
     --beta ${beta} \
-    --num_heads ${num_heads} \
     --tau ${tau} \
     --tau_adv ${tau_adv} \
     --dataset ${dataset} \

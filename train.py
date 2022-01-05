@@ -9,9 +9,8 @@ from __future__ import print_function
 
 import torch
 import torch.nn as nn
-import torch.utils.data as data
 import torch.optim as optim
-from torchvision import datasets, transforms
+
 from torch.utils.tensorboard import SummaryWriter
 
 import os
@@ -21,16 +20,17 @@ import time
 import random
 import argparse
 import numpy as np
-from itertools import chain
 
 from utils import setup_seed
-from attackers import pgd_attack
+from utils import get_datasets, get_model
+from utils import AverageMeter, accuracy
+
+
+from advertorch.attacks import LinfPGDAttack
+from advertorch.context import ctx_noparamgrad_and_eval
 
 # ======== fix data type ========
 torch.set_default_tensor_type(torch.FloatTensor)
-
-# ======== fix seed =============
-setup_seed(666)
 
 # ======== options ==============
 parser = argparse.ArgumentParser(description='Training Enhanced OMP')
@@ -39,160 +39,112 @@ parser.add_argument('--data_dir',type=str,default='/media/Disk1/KunFang/data/CIF
 parser.add_argument('--model_dir',type=str,default='./save/',help='file path for saving model')
 parser.add_argument('--logs_dir',type=str,default='./runs/',help='log path')
 parser.add_argument('--dataset',type=str,default='CIFAR10',help='data set name')
-parser.add_argument('--model',type=str,default='vgg16',help='model name')
+parser.add_argument('--arch',type=str,default='vgg16',help='model architecture')
 # -------- training param. ----------
-parser.add_argument('--batch_size',type=int,default=512,help='batch size for training (default: 256)')    
+parser.add_argument('--batch_size',type=int,default=256,help='batch size for training (default: 256)')    
 parser.add_argument('--epochs',type=int,default=200,help='number of epochs to train (default: 200)')
+parser.add_argument('--save_freq',type=int,default=20,help='model save frequency (default: 20 epoch)')
 # -------- enable adversarial training --------
 parser.add_argument('--adv_train',type=ast.literal_eval,dest='adv_train',help='enable the adversarial training')
-parser.add_argument('--adv_delay',type=int,default=10,help='epochs delay for adversarial training')
 # -------- hyper parameters -------
 parser.add_argument('--alpha',type=float,default=0.1,help='coefficient of the orthogonality regularization term')
 parser.add_argument('--beta',type=float,default=0.1,help='coefficient of the margin regularization term')
 parser.add_argument('--num_heads',type=int,default=10,help='number of orthogonal paths')
-parser.add_argument('--num_classes',type=int,default=10,help='number of classes')
 parser.add_argument('--tau',type=float,default=0.2,help='upper bound of the margin')
 parser.add_argument('--tau_adv',type=float,default=0.2,help='upper bound of the margin for adversarial training')
+# -------- enable adversarial training --------
+parser.add_argument('--adv_train',type=ast.literal_eval,dest='adv_train',help='enable the adversarial training')
+parser.add_argument('--train_eps', default=8., type=float, help='epsilon of attack during training')
+parser.add_argument('--train_step', default=10, type=int, help='itertion number of attack during training')
+parser.add_argument('--train_gamma', default=2., type=float, help='step size of attack during training')
+parser.add_argument('--test_eps', default=8., type=float, help='epsilon of attack during testing')
+parser.add_argument('--test_step', default=20, type=int, help='itertion number of attack during testing')
+parser.add_argument('--test_gamma', default=2., type=float, help='step size of attack during testing')
 args = parser.parse_args()
 
 # ======== initialize log writer
 if args.adv_train == True:
-    writer_dir = args.model+'-p-'+str(args.num_heads)+ \
-    '-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-    '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'-adv'
+    writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch+'-adv', \
+        'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
+        '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'/'))
+    # --------
+    if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch+'-adv')):
+        os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch+'-adv'))
+    # --------
+    model_name = 'p-'+str(args.num_heads) \
+        +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
+        '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'.pth'
+    # --------
+    args.save_path = os.path.join(args.model_dir,args.dataset,args.arch+'-adv',model_name)
+    # writer_dir = args.model+'-p-'+str(args.num_heads)+ \
+    # '-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
+    # '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'-adv'
 else:
-    writer_dir = args.model+'-p-'+str(args.num_heads)+ \
-    '-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-    '-tau-'+str(args.tau)
-writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, writer_dir+'/'))
+    writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, \
+        'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
+        '-tau-'+str(args.tau)+'/'))
+    # --------
+    if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch)):
+        os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch))
+    # --------
+    model_name = 'p-'+str(args.num_heads) \
+        +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ '-tau-'+str(args.tau)+'.pth'
+    # --------
+    args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,model_name)
+    # writer_dir = args.model+'-p-'+str(args.num_heads)+ \
+    # '-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
+    # '-tau-'+str(args.tau)
+# writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, writer_dir+'/'))
 
 # -------- main function
 def main():
     
-    # ======== data set preprocess =============
-    if args.dataset == 'CIFAR10':
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor()
-        ])
-        transform_test = transforms.Compose([
-            transforms.ToTensor()
-        ])
-        trainset = datasets.CIFAR10(root=args.data_dir, train=True, download=True, transform=transform_train)
-        testset = datasets.CIFAR10(root=args.data_dir, train=False, download=True, transform=transform_test)
-    elif args.dataset == 'CIFAR100':
-        args.num_classes = 100
-        args.batch_size = 512
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor()
-        ])
-        transform_test = transforms.Compose([
-            transforms.ToTensor()
-        ])
-        trainset = datasets.CIFAR100(root=args.data_dir, train=True, download=True, transform=transform_train)
-        testset = datasets.CIFAR100(root=args.data_dir, train=False, download=True, transform=transform_test)
-    elif args.dataset == 'SVHN':
-        transform = transforms.Compose([
-            transforms.ToTensor()
-        ])
-        trainset = datasets.SVHN(root=args.data_dir, split='train', download=True, 
-                            transform=transform)
-        testset = datasets.SVHN(root=args.data_dir, split='test', download=True, 
-                            transform=transform)
-    elif args.dataset == 'STL10':
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(96, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor()
-            ])
-        transform_test = transforms.Compose([
-            transforms.ToTensor(),
-            ])
-        trainset = datasets.STL10(root=args.data_dir, split='train', transform=transform_train, download=True)
-        testset = datasets.STL10(root=args.data_dir, split='test', transform=transform_test, download=True)
-    elif args.dataset == 'FMNIST':
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(28, padding=2),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor()
-        ])
-        transform_test = transforms.Compose([
-            transforms.ToTensor()
-        ])
-        trainset = datasets.FashionMNIST(root=args.data_dir, train=True, download=True, transform=transform_train)
-        testset = datasets.FashionMNIST(root=args.data_dir, train=False, download=True, transform=transform_test)
-    else:
-        assert False, "Unknow dataset : {}".format(args.dataset)
-    
-    trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
-    train_num, test_num = len(trainset), len(testset)
+    # ======== fix random seed ========
+    setup_seed(666)
+
+    # ======== get data set =============
+    trainloader, testloader = get_datasets(args)
     print('-------- DATA INFOMATION --------')
     print('---- dataset: '+args.dataset)
-    print('---- #train : %d'%train_num)
-    print('---- #test  : %d'%test_num)
 
     # ======== initialize net
-    if args.model == 'vgg11':
-        from model.dio_vgg import vgg11_bn
-        backbone, head = vgg11_bn(embedding_size=512, num_classes=args.num_classes, num_classifiers=args.num_heads)
-    elif args.model == 'vgg13':
-        from model.dio_vgg import vgg13_bn
-        backbone, head = vgg13_bn(embedding_size=512, num_classes=args.num_classes, num_classifiers=args.num_heads)
-    elif args.model == 'vgg16':
-        from model.dio_vgg import vgg16_bn
-        backbone, head = vgg16_bn(embedding_size=512, num_classes=args.num_classes, num_classifiers=args.num_heads)
-    elif args.model == 'vgg19':
-        from model.dio_vgg import vgg19_bn
-        backbone, head = vgg19_bn(embedding_size=512, num_classes=args.num_classes, num_classifiers=args.num_heads)
-    elif args.model == 'resnet20':
-        from model.dio_resnet_v1 import resnet20
-        backbone, head = resnet20(num_classes=args.num_classes, num_classifiers=args.num_heads)
-    elif args.model == 'resnet32':
-        from model.dio_resnet_v1 import resnet32
-        backbone, head = resnet32(num_classes=args.num_classes, num_classifiers=args.num_heads)
-    elif args.model == 'wrn28x5':
-        from model.dio_wideresnet import wideresnet_28_5
-        backbone, head = wideresnet_28_5(num_classes=args.num_classes, num_classifiers=args.num_heads)
-    elif args.model == 'wrn34x10':
-        from model.dio_wideresnet import wideresnet_34_10
-        backbone, head = wideresnet_34_10(num_classes=args.num_classes, num_classifiers=args.num_heads)
-    elif args.model == 'wrn28x10':
-        from model.dio_wideresnet import wideresnet_28_10
-        backbone, head = wideresnet_28_10(num_classes=args.num_classes, num_classifiers=args.num_heads)
-    else:
-        assert False, "Unknown model : {}".format(args.model)
+    backbone, head = get_model(args)
     backbone, head = backbone.cuda(), head.cuda()
-    if args.adv_train:
-        model_name = args.model+'-p-'+str(args.num_heads) \
-        +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-        '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'-adv.pth'
-        args.model_path = os.path.join(args.model_dir, args.dataset, model_name)
-    else:
-        model_name = args.model+'-p-'+str(args.num_heads) \
-        +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-        '-tau-'+str(args.tau)+'.pth'
-        args.model_path = os.path.join(args.model_dir, args.dataset, model_name)
+    # if args.adv_train:
+    #     model_name = args.model+'-p-'+str(args.num_heads) \
+    #     +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
+    #     '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'-adv.pth'
+    #     args.model_path = os.path.join(args.model_dir, args.dataset, model_name)
+    # else:
+    #     model_name = args.model+'-p-'+str(args.num_heads) \
+    #     +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
+    #     '-tau-'+str(args.tau)+'.pth'
+    #     args.model_path = os.path.join(args.model_dir, args.dataset, model_name)
     print('-------- MODEL INFORMATION --------')
-    print('---- model:      '+args.model)
-    print('---- adv. train: '+str(args.adv_train))
-    print('---- saved path: '+args.model_path)
+    print('---- architecture: '+args.arch)
+    print('---- adv.   train: '+str(args.adv_train))
+    print('---- saved path: '+args.save_path)
 
     # ======== set criterions & optimizers
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD([{'params':backbone.parameters()},{'params':head.parameters()}], lr=0.05, momentum=0.9, weight_decay=5e-4)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [60,120,160], gamma=0.1)
 
-    print('-------- START TRAINING --------')
+    # ======== 
+    args.train_eps /= 255.
+    args.train_gamma /= 255.
+    if args.adv_train:
+        adversary = LinfPGDAttack(net, loss_fn=criterion, eps=args.train_eps, nb_iter=args.train_step, eps_iter=args.train_gamma, rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False)
+    else:
+        adversary = None
 
+
+    print('-------- START TRAINING --------')
     for epoch in range(args.epochs):
 
         start = time.time()
         # -------- train
-        train_epoch(backbone, head, trainloader, optimizer, criterion, epoch)
+        train_epoch(backbone, head, trainloader, optimizer, criterion, epoch, adversary)
 
         # -------- validation
         if epoch % 20 == 0 or epoch == (args.epochs-1):
@@ -225,14 +177,10 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
     backbone.train()
     head.train()
 
-    avg_loss_ce = np.zeros(args.num_heads)
-    avg_loss_ortho = 0.0
-    avg_loss_margin = 0.0
+    batch_time = AverageMeter()
+    losses_ce, losses_ortho, losses_margin = AverageMeter(), AverageMeter(), AverageMeter()
 
-    avg_loss_ce_adv = np.zeros(args.num_heads)
-    avg_loss_ortho_adv = 0.0
-    avg_loss_margin_adv = 0.0
-
+    end = time.time()
     for batch_idx, (b_data, b_label) in enumerate(trainloader):
         
         # -------- move to gpu
