@@ -172,13 +172,14 @@ def main():
     print('-------- TRAINING finished.')
 
 # ======== train  model ========
-def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
+def train_epoch(backbone, head, trainloader, optim, criterion, epoch, adversary):
     
     backbone.train()
     head.train()
 
     batch_time = AverageMeter()
     losses_ce, losses_ortho, losses_margin = AverageMeter(), AverageMeter(), AverageMeter()
+    losses = AverageMeter()
 
     end = time.time()
     for batch_idx, (b_data, b_label) in enumerate(trainloader):
@@ -186,80 +187,80 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
         # -------- move to gpu
         b_data, b_label = b_data.cuda(), b_label.cuda()
 
-        # -------- forward and compute loss
-        total_loss = .0
-
-        # -------- compute CROSS ENTROPY loss
-        loss_ce = .0
-        all_logits = head(backbone(b_data), 'all')
-        for idx in range(args.num_heads):
-            logits = all_logits[idx]
-            loss = criterion(logits, b_label)
-            loss_ce += 1/args.num_heads * loss                      # sum the weighted loss for backward propagation
-            avg_loss_ce[idx] = avg_loss_ce[idx] + loss.item()       # save the loss value
-    
-        # -------- compute the ORTHOGONALITY constraint
-        loss_ortho = .0
-        if args.num_heads > 1:
-            loss_ortho = head._orthogonal_costr()
-            # avg_loss_ortho = avg_loss_ortho + reduce_tensor(loss_ortho.data).item()
-            avg_loss_ortho = avg_loss_ortho + loss_ortho.item()
+        if args.adv_train:
+            #TODO
+            A=1
         else:
-            loss_ortho = 0
-        
-        # -------- find correctly-classified samples-clfs (x, clf-i)
-        # -------- compute MARGIN loss
-        # -------- 对每条路径遍历
-        loss_margin = .0
-        for idx in range(args.num_heads):           # 对每条路径
-            logits = all_logits[idx]                # 读取当前路径对当前 batch 数据的预测 logits
-            _, pred = torch.max(logits.data, 1)     # 获取当前路径对当前 batch 数据的预测结果
-            b_corr_idx = (pred == b_label)          # 获取当前路径预测正确的数据的索引
+            # -------- compute CROSS ENTROPY loss
+            loss_ce = .0
+            all_logits = head(backbone(b_data), 'all')
+            for idx in range(args.num_heads):
+                logits = all_logits[idx]
+                loss = criterion(logits, b_label)
+                loss_ce += 1/args.num_heads * loss                      # sum the weighted loss for backward propagation
+            
+            # -------- compute the ORTHOGONALITY constraint
+            loss_ortho = .0
+            if args.num_heads > 1:
+                loss_ortho = head._orthogonal_costr()
+            
+            # -------- find correctly-classified samples-clfs (x, clf-i)
+            # -------- compute MARGIN loss
+            # -------- 对每条路径遍历
+            loss_margin = head.compute_margin_loss(all_logits, b_label, args.tau)
+            # loss_margin = .0
+            # for idx in range(args.num_heads):           # 对每条路径
+            #     logits = all_logits[idx]                # 读取当前路径对当前 batch 数据的预测 logits
+            #     _, pred = torch.max(logits.data, 1)     # 获取当前路径对当前 batch 数据的预测结果
+            #     b_corr_idx = (pred == b_label)          # 获取当前路径预测正确的数据的索引
 
-            if b_corr_idx.any() == False:           # 如果当前路径对 batch 数据全部预测错误，即，b_data_idx 全部 false
-                continue
+            #     if b_corr_idx.any() == False:           # 如果当前路径对 batch 数据全部预测错误，即，b_data_idx 全部 false
+            #         continue
 
-            b_logits_correct = logits[b_corr_idx,:]                                                         # 依据索引，读取当前路径预测正确的那些数据的 logits
-            b_corr_num = b_logits_correct.size(0)
-            b_logits_correct_max, _ = torch.max(b_logits_correct, 1)                                        # 获取预测正确数据的 logits 的最大值，即，groundtruth 所在类的 logits
-            b_logits_correct_max = b_logits_correct_max.unsqueeze(1).expand(b_corr_num, args.num_classes)   # 最大值复制
+            #     b_logits_correct = logits[b_corr_idx,:]                                                         # 依据索引，读取当前路径预测正确的那些数据的 logits
+            #     b_corr_num = b_logits_correct.size(0)
+            #     b_logits_correct_max, _ = torch.max(b_logits_correct, 1)                                        # 获取预测正确数据的 logits 的最大值，即，groundtruth 所在类的 logits
+            #     b_logits_correct_max = b_logits_correct_max.unsqueeze(1).expand(b_corr_num, args.num_classes)   # 最大值复制
 
-            hyperplane_norm = head._compute_l2_norm_specified(idx)                                              # 获取当前路径的超平面的 l2 norm
-            hyperplane_norm = hyperplane_norm.repeat(b_corr_num,1)                                              # 数据复制，方便计算距离
+            #     hyperplane_norm = head._compute_l2_norm_specified(idx)                                              # 获取当前路径的超平面的 l2 norm
+            #     hyperplane_norm = hyperplane_norm.repeat(b_corr_num,1)                                              # 数据复制，方便计算距离
 
-            b_distance = torch.div(torch.abs(b_logits_correct-b_logits_correct_max), hyperplane_norm)           # 计算到最大值的 distance，这其中存在 0 值 
-            b_distance = torch.where(b_distance>0, b_distance, torch.tensor(1000.0).cuda())                     # 去除 0 值
-            b_margin, _ = torch.min(b_distance, 1)                                                              # 获取 margin
+            #     b_distance = torch.div(torch.abs(b_logits_correct-b_logits_correct_max), hyperplane_norm)           # 计算到最大值的 distance，这其中存在 0 值 
+            #     b_distance = torch.where(b_distance>0, b_distance, torch.tensor(1000.0).cuda())                     # 去除 0 值
+            #     b_margin, _ = torch.min(b_distance, 1)                                                              # 获取 margin
 
-            loss_margin += (args.tau - b_margin).clamp(min=0).mean()                # 计算 margin loss
-            avg_loss_margin += loss_margin.item()
-        
-        total_loss = loss_ce + args.alpha * loss_ortho + args.beta * loss_margin
+            #     loss_margin += (args.tau - b_margin).clamp(min=0).mean()                # 计算 margin loss
+            
+            total_loss = loss_ce + args.alpha * loss_ortho + args.beta * loss_margin
+            losses.update(total_loss, b_data.size(0))
+            losses_ce.update(loss_ce, b_data.size(0))
+            losses_ortho.update(loss_ortho, b_data.size(0))
+            losses_margin.update(loss_margin, b_data.size(0))
 
         # -------- print info. at the last batch
-        if batch_idx == (len(trainloader)-1):
-            avg_loss_ce = avg_loss_ce / len(trainloader)
-            avg_loss_ortho = avg_loss_ortho / len(trainloader)
-            avg_loss_margin = avg_loss_margin / len(trainloader)
+        # if batch_idx == (len(trainloader)-1):
+        #     avg_loss_ce = avg_loss_ce / len(trainloader)
+        #     avg_loss_ortho = avg_loss_ortho / len(trainloader)
+        #     avg_loss_margin = avg_loss_margin / len(trainloader)
         
-            # -------- record the cross entropy loss of each path
-            loss_path_ce_record = {}
-            for idx in range(args.num_heads):
-                loss_path_ce_record['path-%d'%idx] = avg_loss_ce[idx]
-            loss_path_ce_record['avg.'] = avg_loss_ce.mean()
-            writer.add_scalars('loss-ce', loss_path_ce_record, epoch)
+        #     # -------- record the cross entropy loss of each path
+        #     loss_path_ce_record = {}
+        #     for idx in range(args.num_heads):
+        #         loss_path_ce_record['path-%d'%idx] = avg_loss_ce[idx]
+        #     loss_path_ce_record['avg.'] = avg_loss_ce.mean()
+        #     writer.add_scalars('loss-ce', loss_path_ce_record, epoch)
         
-            # -------- record the orthgonality loss
-            writer.add_scalar('loss-ortho', avg_loss_ortho, epoch)
+        #     # -------- record the orthgonality loss
+        #     writer.add_scalar('loss-ortho', avg_loss_ortho, epoch)
 
-            # -------- record the margin loss
-            writer.add_scalar('loss-margin', avg_loss_margin, epoch)
+        #     # -------- record the margin loss
+        #     writer.add_scalar('loss-margin', avg_loss_margin, epoch)
 
-            # -------- print in terminal
-            print('Epoch %d/%d CLEAN samples:'%(epoch, args.epochs))
-            print('     CE     loss of each path: ', avg_loss_ce)
-            print('     ORTHO  loss = %f.'%avg_loss_ortho)
-            print('     MARGIN loss = %f.'%avg_loss_margin)
+        #     # -------- print in terminal
+        #     print('Epoch %d/%d CLEAN samples:'%(epoch, args.epochs))
+        #     print('     CE     loss of each path: ', avg_loss_ce)
+        #     print('     ORTHO  loss = %f.'%avg_loss_ortho)
+        #     print('     MARGIN loss = %f.'%avg_loss_margin)
 
         # -------- backprop. & update
         optim.zero_grad()
@@ -352,17 +353,20 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch):
     return
 
 # ======== evaluate model ========
-def val(backbone, head, trainloader, testloader):
+def val(backbone, head, dataloader):
     
     backbone.eval()
     head.eval()
 
-    correct_train, correct_test = np.zeros(args.num_heads), np.zeros(args.num_heads)
+    acc = []
+    for idx in range(args.num_heads):
+        measure = AverageMeter()
+        acc.append(measure)
     
     with torch.no_grad():
         
         # -------- compute the accs. of train, test set
-        for test in testloader:
+        for test in dataloader:
             images, labels = test
             images, labels = images.cuda(), labels.cuda()
 
@@ -370,23 +374,12 @@ def val(backbone, head, trainloader, testloader):
             all_logits = head(backbone(images), 'all')
             for idx in range(args.num_heads):
                 logits = all_logits[idx]
-                logits = logits.detach()
-                _, pred = torch.max(logits.data, 1)
-                correct_test[idx] += (pred == labels).sum().item()
-            
-        
-        for train in trainloader:
-            images, labels = train
-            images, labels = images.cuda(), labels.cuda()
+                logits = logits.detach().float()
 
-            all_logits = head(backbone(images), 'all')
-            for idx in range(args.num_heads):
-                logits = all_logits[idx]
-                logits = logits.detach()
-                _, pred = torch.max(logits.data, 1)
-                correct_train[idx] += (pred == labels).sum().item()
-        
-    return correct_train, correct_test
+                prec1 = accuracy(logits.data, labels)[0]
+                acc[idx].update(prec1.item(), images.size(0))
+            
+    return acc
 
 
 # ======== startpoint
