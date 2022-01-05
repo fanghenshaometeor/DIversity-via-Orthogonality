@@ -163,7 +163,33 @@ class Ohead(nn.Module):
             norm_results[i] = hyperplane_norm
         
         return norm_results
-            
+
+    def compute_margin_loss(self, all_logits, label, tau):
+        loss_margin = .0
+        for idx in range(self.num_classifiers):
+            logits = all_logits[idx]
+            _, pred = torch.max(logits.data, 1)
+            corr_idx = (pred == label)
+
+            if corr_idx.any() == False:
+                continue
+
+            logits_correct = logits[corr_idx,:]
+            corr_num = logits_correct.size(0)
+            logits_correct_max, _ = torch.max(logits_correct, 1)
+            logits_correct_max = logits_correct_max.unsqueeze(1).expand(corr_num, self.num_classes)
+
+            hyperplane_norm = self._compute_l2_norm_specified(idx)
+            hyperplane_norm = hyperplane_norm.repeat(corr_num,1)
+
+            distance = torch.div(torch.abs(logits_correct-logits_correct_max), hyperplane_norm)
+            distance = torch.where(distance>0, distance, torch.tensor(1000.0).cuda())
+            margin, _ = torch.min(distance, 1)
+
+            loss_margin += (tau - margin).clamp(min=0).mean()
+        
+        return loss_margin
+
     # ---- forward 
     def forward(self, embedding, forward_type=0):
 
