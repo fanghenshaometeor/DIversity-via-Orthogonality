@@ -49,7 +49,6 @@ parser.add_argument('--alpha',type=float,default=0.1,help='coefficient of the or
 parser.add_argument('--beta',type=float,default=0.1,help='coefficient of the margin regularization term')
 parser.add_argument('--num_heads',type=int,default=10,help='number of orthogonal paths')
 parser.add_argument('--tau',type=float,default=0.2,help='upper bound of the margin')
-parser.add_argument('--tau_adv',type=float,default=0.2,help='upper bound of the margin for adversarial training')
 # -------- enable adversarial training --------
 parser.add_argument('--adv_train',type=ast.literal_eval,dest='adv_train',help='enable the adversarial training')
 parser.add_argument('--train_eps', default=8., type=float, help='epsilon of attack during training')
@@ -64,19 +63,15 @@ args = parser.parse_args()
 if args.adv_train == True:
     writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch+'-adv', \
         'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-        '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'/'))
+        '-tau-'+str(args.tau)+'/'))
     # --------
     if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch+'-adv')):
         os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch+'-adv'))
     # --------
     model_name = 'p-'+str(args.num_heads) \
-        +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-        '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)
+        +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ '-tau-'+str(args.tau)
     # --------
     args.save_path = os.path.join(args.model_dir,args.dataset,args.arch+'-adv',model_name)
-    # writer_dir = args.model+'-p-'+str(args.num_heads)+ \
-    # '-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-    # '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'-adv'
 else:
     writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, \
         'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
@@ -89,10 +84,6 @@ else:
         +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ '-tau-'+str(args.tau)
     # --------
     args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,model_name)
-    # writer_dir = args.model+'-p-'+str(args.num_heads)+ \
-    # '-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-    # '-tau-'+str(args.tau)
-# writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, writer_dir+'/'))
 
 # -------- main function
 def main():
@@ -108,20 +99,10 @@ def main():
     # ======== initialize net
     backbone, head = get_model(args)
     backbone, head = backbone.cuda(), head.cuda()
-    # if args.adv_train:
-    #     model_name = args.model+'-p-'+str(args.num_heads) \
-    #     +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-    #     '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'-adv.pth'
-    #     args.model_path = os.path.join(args.model_dir, args.dataset, model_name)
-    # else:
-    #     model_name = args.model+'-p-'+str(args.num_heads) \
-    #     +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-    #     '-tau-'+str(args.tau)+'.pth'
-    #     args.model_path = os.path.join(args.model_dir, args.dataset, model_name)
     print('-------- MODEL INFORMATION --------')
     print('---- architecture: '+args.arch)
     print('---- adv.   train: '+str(args.adv_train))
-    print('---- saved path: '+args.save_path)
+    print('---- saved   path: '+args.save_path)
 
     # ======== set criterions & optimizers
     criterion = nn.CrossEntropyLoss()
@@ -151,8 +132,8 @@ def main():
             acc_tr, acc_te = val(backbone, head, trainloader), val(backbone, head, testloader)
             acc_tr_str, acc_te_str = '', ''
             for idx in range(args.num_heads):
-                acc_tr_str += str(acc_tr[idx].avg)+'\t'
-                acc_te_str += str(acc_te[idx].avg)+'\t'
+                acc_tr_str += '%.3f'%acc_tr[idx].avg+'\t'
+                acc_te_str += '%.2f'%acc_te[idx].avg+'\t'
             print('training acc. on each path: \n'+acc_tr_str)
             print('test     acc. on each path: \n'+acc_te_str)
             # --------
@@ -191,12 +172,11 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch, adversary)
                 with ctx_noparamgrad_and_eval(head):
                     perturbed_data = adversary.perturb(b_data, b_label)
             all_logits = head(backbone(perturbed_data), 'all')
-            # -------- compute MARGIN loss
-            loss_margin = head.compute_margin_loss(all_logits, b_label, args.tau_adv)
         else:
             all_logits = head(backbone(b_data), 'all')
-            # -------- compute MARGIN loss
-            loss_margin = head.compute_margin_loss(all_logits, b_label, args.tau)
+
+        # -------- compute MARGIN loss
+        loss_margin = head.compute_margin_loss(all_logits, b_label, args.tau)
         
         # -------- compute CROSS ENTROPY loss
         loss_ce = .0
