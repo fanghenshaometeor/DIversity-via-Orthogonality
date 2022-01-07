@@ -44,8 +44,6 @@ parser.add_argument('--arch',type=str,default='vgg16',help='model architecture')
 parser.add_argument('--batch_size',type=int,default=256,help='batch size for training (default: 256)')    
 parser.add_argument('--epochs',type=int,default=200,help='number of epochs to train (default: 200)')
 parser.add_argument('--save_freq',type=int,default=20,help='model save frequency (default: 20 epoch)')
-# -------- enable adversarial training --------
-parser.add_argument('--adv_train',type=ast.literal_eval,dest='adv_train',help='enable the adversarial training')
 # -------- hyper parameters -------
 parser.add_argument('--alpha',type=float,default=0.1,help='coefficient of the orthogonality regularization term')
 parser.add_argument('--beta',type=float,default=0.1,help='coefficient of the margin regularization term')
@@ -73,7 +71,7 @@ if args.adv_train == True:
     # --------
     model_name = 'p-'+str(args.num_heads) \
         +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
-        '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)+'.pth'
+        '-tau-'+str(args.tau)+'-taua-'+str(args.tau_adv)
     # --------
     args.save_path = os.path.join(args.model_dir,args.dataset,args.arch+'-adv',model_name)
     # writer_dir = args.model+'-p-'+str(args.num_heads)+ \
@@ -88,7 +86,7 @@ else:
         os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch))
     # --------
     model_name = 'p-'+str(args.num_heads) \
-        +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ '-tau-'+str(args.tau)+'.pth'
+        +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ '-tau-'+str(args.tau)
     # --------
     args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,model_name)
     # writer_dir = args.model+'-p-'+str(args.num_heads)+ \
@@ -147,7 +145,7 @@ def main():
         # -------- train
         train_epoch(backbone, head, trainloader, optimizer, criterion, epoch, adversary)
 
-        # -------- validation
+        # -------- validation, print info. & save model
         if epoch == 1 or epoch % 20 == 0 or epoch == args.epochs:
             print('Evaluating...')
             acc_tr, acc_te = val(backbone, head, trainloader), val(backbone, head, testloader)
@@ -157,15 +155,13 @@ def main():
                 acc_te_str += str(acc_te[idx].avg)+'\t'
             print('training acc. on each path: \n'+acc_tr_str)
             print('test     acc. on each path: \n'+acc_te_str)
+            # --------
+            checkpoint = {'state_dict_backbone': backbone.state_dict(), 'state_dict_head': head.state_dict()}
+            torch.save(checkpoint, args.save_path+"-epoch-%d"%epoch+".pth")
 
         scheduler.step()
-
-        # -------- print info. & save model
-        if epoch == 1 or epoch % 20 == 0 or epoch == args.epochs:
-            checkpoint = {'state_dict_backbone': backbone.state_dict(), 'state_dict_head': head.state_dict()}
-            torch.save(checkpoint, args.save_path)
-
         print('Current training model: ', args.save_path)
+        print('===========================================')
     
     print('-------- TRAINING finished.')
 
@@ -209,7 +205,7 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch, adversary)
             loss = criterion(logits, b_label)
             loss_ce += 1/args.num_heads * loss
 
-            losses_ce[idx].update(loss, b_data.size(0))
+            losses_ce[idx].update(loss.float().item(), b_data.size(0))
 
         # -------- compute the ORTHOGONALITY constraint
         loss_ortho = .0
@@ -226,7 +222,7 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch, adversary)
 
         # -------- record & print in termial
         losses.update(total_loss, b_data.size(0))
-        losses_ce[args.num_heads].update(loss_ce, b_data.size(0))
+        losses_ce[args.num_heads].update(loss_ce.float().item(), b_data.size(0))
         losses_ortho.update(loss_ortho, b_data.size(0))
         losses_margin.update(loss_margin, b_data.size(0))
         # ----
@@ -237,12 +233,12 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch, adversary)
     losses_ce_str = ''
     for idx in range(args.num_heads):
         losses_ce_record['path-%d'%idx] = losses_ce[idx].avg
-        losses_ce_str += str(losses_ce[idx].avg)+'\t'
+        losses_ce_str += "%.4f"%losses_ce[idx].avg +'\t'
     losses_ce_record['avg.'] = losses_ce[args.num_heads].avg
     writer.add_scalars('loss-ce', losses_ce_record, epoch)
     writer.add_scalar('loss-ortho', losses_ortho.avg, epoch)
     writer.add_scalar('loss-margin', losses_margin.avg, epoch)
-    print('Epoch %d/%d costs %fs.'%(epoch, args.epochs, batch_time.avg))
+    print('Epoch %d/%d costs %fs.'%(epoch, args.epochs, batch_time.sum))
     print('     CE      loss of each path: \n'+losses_ce_str)
     print('     Avg. CE loss = %f.'%losses_ce_record['avg.'])
     print('     ORTHO   loss = %f.'%losses_ortho.avg)
