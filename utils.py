@@ -158,7 +158,7 @@ def get_model(args):
      elif 'vgg' in args.arch:
           net = dio_vgg.__dict__[args.arch](num_classes=num_class)
      elif 'wrn' in args.arch:
-          net = dio_wideresnet.__dict__[args.arch](num_classes=num_class)
+          backbone, head = dio_wideresnet.__dict__[args.arch](num_classes=num_class)
      else:
           assert False, "Unknown model : {}".format(args.arch)
 
