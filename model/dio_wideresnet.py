@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from advertorch.utils import NormalizeByChannelMeanStd
 
 class BasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, drop_rate=0.0):
@@ -70,6 +71,10 @@ class WideResNet(nn.Module):
             int(32 * widen_factor), int(64 * widen_factor)]
         assert((depth - 4) % 6 == 0)
         num_blocks = (depth - 4) / 6
+        
+        # default normalization is for CIFAR10
+        self.normalize = NormalizeByChannelMeanStd(
+            mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])
 
         self.conv1 = nn.Conv2d(
             color_channels, num_channels[0], kernel_size=3, stride=1,
@@ -97,6 +102,7 @@ class WideResNet(nn.Module):
                 mod.bias.data.zero_()
 
     def forward(self, x):
+        x = self.normalize(x)
         out = self.conv1(x)
         out = self.convgroup1(out)
         out = self.convgroup2(out)
@@ -122,7 +128,7 @@ class Ohead(nn.Module):
         self.classifiers = nn.Sequential(*clfs)
     
     # ---- orthogonality constraint
-    def _orthogonal_costr(self):
+    def compute_ortho_loss(self):
         total = 0
         for i in range(self.num_classifiers):
             for param in self.classifiers[i].parameters():
@@ -170,6 +176,34 @@ class Ohead(nn.Module):
             norm_results[i] = hyperplane_norm
         
         return norm_results
+
+    def compute_margin_loss(self, all_logits, label, tau):
+        loss_margin = .0
+        # -------- find correctly-classified samples-clfs (x, clf-i)
+        # -------- 对每条路径遍历
+        for idx in range(self.num_classifiers):         # 对每条路径
+            logits = all_logits[idx]                    # 读取当前路径对当前 batch 数据的预测 logits
+            _, pred = torch.max(logits.data, 1)         # 获取当前路径对当前 batch 数据的预测结果
+            corr_idx = (pred == label)                  # 获取当前路径预测正确的数据的索引
+
+            if corr_idx.any() == False:                 # 如果当前路径对 batch 数据全部预测错误，即，b_data_idx 全部 false
+                continue
+
+            logits_correct = logits[corr_idx,:]                                                         # 依据索引，读取当前路径预测正确的那些数据的 logits
+            corr_num = logits_correct.size(0)
+            logits_correct_max, _ = torch.max(logits_correct, 1)                                        # 获取预测正确数据的 logits 的最大值，即，groundtruth 所在类的 logits
+            logits_correct_max = logits_correct_max.unsqueeze(1).expand(corr_num, self.num_classes)     # 最大值复制
+
+            hyperplane_norm = self._compute_l2_norm_specified(idx)                                      # 获取当前路径的超平面的 l2 norm
+            hyperplane_norm = hyperplane_norm.repeat(corr_num,1)                                        # 数据复制，方便计算距离
+
+            distance = torch.div(torch.abs(logits_correct-logits_correct_max), hyperplane_norm)         # 计算到最大值的 distance，这其中存在 0 值 
+            distance = torch.where(distance>0, distance, torch.tensor(1000.0).cuda())                   # 去除 0 值
+            margin, _ = torch.min(distance, 1)                                                          # 获取 margin
+
+            loss_margin += (tau - margin).clamp(min=0).mean()
+        
+        return loss_margin
             
     # ---- forward 
     def forward(self, embedding, forward_type=0):
@@ -194,12 +228,12 @@ class Ohead(nn.Module):
         else:
             return self.classifiers[forward_type](embedding)
 
-def wideresnet_28_5(num_classes=10, num_classifiers=10):
+def wrn28x5(num_classes=10, num_classifiers=10):
     backbone = WideResNet(depth=28, widen_factor=5)
     head = Ohead(embedding_size=64*5, num_classes=num_classes, num_classifiers=num_classifiers)
     return backbone, head
 
-def wideresnet_28_10(num_classes=10, num_classifiers=10):
+def wrn28x10(num_classes=10, num_classifiers=10):
     backbone = WideResNet(depth=28, widen_factor=10)
     head = Ohead(embedding_size=64*10, num_classes=num_classes, num_classifiers=num_classifiers)
     return backbone, head
