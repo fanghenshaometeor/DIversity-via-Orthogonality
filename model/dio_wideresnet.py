@@ -238,7 +238,7 @@ def wrn28x10(num_classes=10, num_classifiers=10):
     head = Ohead(embedding_size=64*10, num_classes=num_classes, num_classifiers=num_classifiers)
     return backbone, head
 
-def wideresnet_34_10(num_classes=10, num_classifiers=10):
+def wrn34x10(num_classes=10, num_classifiers=10):
     backbone = WideResNet(depth=34, widen_factor=10)
     head = Ohead(embedding_size=64*10, num_classes=num_classes, num_classifiers=num_classifiers)
     return backbone, head
