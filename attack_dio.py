@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 
 import os
+import sys
 import ast
 import copy
 import argparse
@@ -20,6 +21,7 @@ import numpy as np
 from utils import setup_seed
 from utils import get_datasets, get_model
 from utils import AverageMeter, accuracy
+from utils import Logger
 
 from advertorch.attacks import GradientSignAttack
 from advertorch.attacks import LinfPGDAttack
@@ -33,6 +35,7 @@ torch.set_default_tensor_type(torch.FloatTensor)
 parser = argparse.ArgumentParser(description='Attack Deep Neural Networks')
 # -------- file param. --------------
 parser.add_argument('--data_dir',type=str,default='/media/Disk1/KunFang/data/CIFAR10/',help='file path for data')
+parser.add_argument('--output_dir',type=str,default='./output/',help='folder to store output')
 parser.add_argument('--dataset',type=str,default='CIFAR10',help='data set name')
 parser.add_argument('--arch',type=str,default='vgg16',help='model architecture')
 parser.add_argument('--model_path',type=str,default='./save/CIFAR10-VGG.pth',help='saved model path')
@@ -48,6 +51,20 @@ parser.add_argument('--test_eps', default=8., type=float, help='epsilon of attac
 parser.add_argument('--test_step', default=20, type=int, help='itertion number of attack during testing')
 parser.add_argument('--test_gamma', default=2., type=float, help='step size of attack during testing')
 args = parser.parse_args()
+
+# -------- initialize output store dir.
+if 'adv' in args.model_path:
+    if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch+'-adv')):
+        os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch+'-adv'))
+    args.output_path = os.path.split(args.model_path)[-1].replace(".pth", "-"+args.attack_type.upper()+".log")
+    args.output_path = os.path.join(args.output_dir,args.dataset,args.arch+'-adv',args.output_path)
+else:
+    if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch)):
+        os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch))
+    args.output_path = os.path.split(args.model_path)[-1].replace(".pth", "-"+args.attack_type.upper()+".log")
+    args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,args.output_path)
+sys.stdout = Logger(filename=args.output_path,stream=sys.stdout)
+
 
 # -------- main function
 def main():
@@ -110,6 +127,25 @@ def main():
         print('--------')
         print('Attacked acc. on each path: \n'+acc_fgsm_str)
         print("Attacked mean/std.    acc.:\t"+"%.2f"%np.mean(acc_fgsm)+"\t"+"%.2f"%np.std(acc_fgsm))
+
+    elif args.attack_type == 'pgd':
+        print('-------- START ATTACKING --------')
+        print('-------- ADVERSARY INFORMATION --------')
+        print('---- PGD attack with %d/255 step size, %d iterations and bound %d/255.'%(args.test_gamma*255, args.test_step, args.test_eps*255))
+        # --------
+        print('-------- START PGD ATTACK...')
+        acc_pgd = np.zeros(args.num_heads)
+        acc_pgd_str = ''
+        for head_idx in range(args.num_heads):
+            print("-------- attacking network-%d..."%head_idx)
+            acc = attack(backbone, head, head_idx, testloader)
+            acc_pgd[head_idx] = acc
+            acc_pgd_str += '%.2f'%acc+'\t'
+            print("acc. of path-%d under PGD attack = %.2f"%(head_idx, acc))
+        print('--------')
+        print('Attacked acc. on each path: \n'+acc_pgd_str)
+        print("Attacked mean/std.    acc.:\t"+"%.2f"%np.mean(acc_pgd)+"\t"+"%.2f"%np.std(acc_pgd))
+
 
 
     # elif args.attack_type == 'pgd':
@@ -224,6 +260,7 @@ def main():
         # print("std. acc. under AA attack:")
         # print(np.std(acc_aa))  
 
+    print('-------- Results saved path: ', args.output_path)
     print('-------- FINISHED.')
 
     return
@@ -279,7 +316,7 @@ def attack(backbone, head, head_idx, testloader):
     elif args.attack_type == 'pgd':
         def forward(input):
             return head(backbone(input), head_idx)
-        adversary = LinfPGDAttack(net, loss_fn=nn.CrossEntropyLoss(), eps=args.test_eps, nb_iter=args.test_step, eps_iter=args.test_gamma, rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False)
+        adversary = LinfPGDAttack(forward, loss_fn=nn.CrossEntropyLoss(), eps=args.test_eps, nb_iter=args.test_step, eps_iter=args.test_gamma, rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False)
 
     elif args.attack_type == 'square':
         def forward(input):
