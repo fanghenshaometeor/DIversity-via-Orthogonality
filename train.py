@@ -107,7 +107,11 @@ def main():
     # ======== set criterions & optimizers
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD([{'params':backbone.parameters()},{'params':head.parameters()}], lr=0.05, momentum=0.9, weight_decay=5e-4)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [60,120,160], gamma=0.1)
+    if args.arch == 'wrn34x10':
+        args.epochs = 100
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [75, 90], gamma=0.1)
+    else:
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [60,120,160], gamma=0.1)
 
     # ======== 
     args.train_eps /= 255.
@@ -124,6 +128,7 @@ def main():
     for epoch in range(1, args.epochs+1):
 
         # -------- train
+        print('Training(%d/%d)...'%(epoch, args.epochs))
         train_epoch(backbone, head, trainloader, optimizer, criterion, epoch, adversary)
 
         # -------- validation, print info. & save model
