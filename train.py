@@ -6,6 +6,7 @@ Created on Mon Feb 24 2020
 """
 
 from __future__ import print_function
+from turtle import back
 
 import torch
 import torch.nn as nn
@@ -42,13 +43,13 @@ parser.add_argument('--dataset',type=str,default='CIFAR10',help='data set name')
 parser.add_argument('--arch',type=str,default='vgg16',help='model architecture')
 # -------- training param. ----------
 parser.add_argument('--batch_size',type=int,default=256,help='batch size for training (default: 256)')    
-parser.add_argument('--epochs',type=int,default=200,help='number of epochs to train (default: 200)')
+parser.add_argument('--epochs',type=int,default=100,help='number of epochs to train (default: 100)')
 parser.add_argument('--save_freq',type=int,default=20,help='model save frequency (default: 20 epoch)')
 # -------- hyper parameters -------
 parser.add_argument('--alpha',type=float,default=0.1,help='coefficient of the orthogonality regularization term')
 parser.add_argument('--beta',type=float,default=0.1,help='coefficient of the margin regularization term')
-parser.add_argument('--num_heads',type=int,default=10,help='number of orthogonal paths')
 parser.add_argument('--tau',type=float,default=0.2,help='upper bound of the margin')
+parser.add_argument('--num_heads',type=int,default=10,help='number of orthogonal paths')
 # -------- enable adversarial training --------
 parser.add_argument('--adv_train',type=ast.literal_eval,dest='adv_train',help='enable the adversarial training')
 parser.add_argument('--train_eps', default=8., type=float, help='epsilon of attack during training')
@@ -65,11 +66,11 @@ if args.adv_train == True:
         'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
         '-tau-'+str(args.tau)+'/'))
     # --------
-    if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch+'-adv')):
-        os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch+'-adv'))
-    # --------
     model_name = 'p-'+str(args.num_heads) \
         +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ '-tau-'+str(args.tau)
+    # --------
+    if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch+'-adv',model_name)):
+        os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch+'-adv',model_name))
     # --------
     args.save_path = os.path.join(args.model_dir,args.dataset,args.arch+'-adv',model_name)
 else:
@@ -77,11 +78,11 @@ else:
         'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
         '-tau-'+str(args.tau)+'/'))
     # --------
-    if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch)):
-        os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch))
-    # --------
     model_name = 'p-'+str(args.num_heads) \
         +'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ '-tau-'+str(args.tau)
+    # --------
+    if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,model_name)):
+        os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,model_name))
     # --------
     args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,model_name)
 
@@ -106,20 +107,23 @@ def main():
 
     # ======== set criterions & optimizers
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD([{'params':backbone.parameters()},{'params':head.parameters()}], lr=0.05, momentum=0.9, weight_decay=5e-4)
-    if args.arch == 'wrn34x10':
-        args.epochs = 100
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [75, 90], gamma=0.1)
-    else:
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [60,120,160], gamma=0.1)
+    optimizer = optim.SGD([{'params':backbone.parameters()},{'params':head.parameters()}], lr=0.1, momentum=0.9, weight_decay=5e-4)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [75, 90], gamma=0.1)
 
     # ======== 
     args.train_eps /= 255.
     args.train_gamma /= 255.
+    args.test_eps /= 255.
+    args.test_gamma /= 255.
     if args.adv_train:
         def forward(input):
             return head(backbone(input), 'random')
         adversary = LinfPGDAttack(forward, loss_fn=criterion, eps=args.train_eps, nb_iter=args.train_step, eps_iter=args.train_gamma, rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False)
+        def forward_val(input):
+            return head(backbone(input), 0)
+        adversary_val = LinfPGDAttack(forward_val, loss_fn=criterion, eps=args.test_eps, nb_iter=args.test_step, eps_iter=args.test_gamma, rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False)
+        best_robust_te_acc = .0
+        best_robust_epoch = 0
     else:
         adversary = None
 
@@ -131,19 +135,40 @@ def main():
         print('Training(%d/%d)...'%(epoch, args.epochs))
         train_epoch(backbone, head, trainloader, optimizer, criterion, epoch, adversary)
 
-        # -------- validation, print info. & save model
+        # -------- adversarial validation
+        valstats = {}
+        if args.adv_train:
+            print('Adversarial Validating...')
+            robust_te_acc = val_adv(backbone, head, testloader, adversary_val)
+            valstats['robustacc'] = robust_te_acc
+            print('     Current robust accuracy = %.2f.'%robust_te_acc)
+
+            # ---- best updated, print info. & save model
+            if robust_te_acc >= best_robust_te_acc:
+                best_robust_te_acc = robust_te_acc
+                best_robust_epoch = epoch
+                print('     Best robust accuracy %.2f updated  at epoch-%d.'%(best_robust_te_acc, best_robust_epoch))
+
+                checkpoint = {'state_dict_backbone': backbone.state_dict(), 'state_dict_head': head.state_dict(), 'best-epoch': best_robust_epoch}
+                args.model_path = 'best.pth'
+                torch.save(checkpoint, os.path.join(args.save_path,args.model_path))
+            else:
+                print('     Best robust accuracy %.2f achieved at epoch-%d'%(best_robust_te_acc, best_robust_epoch))            
+
+        # -------- validation
+        print('Validating...')
+        acc_te = val(backbone, head, testloader)
+        acc_te_str = ''
+        for idx in range(args.num_heads):
+            acc_te_str += '%.2f'%acc_te[idx].avg+'\t'
+        print('     Current test acc. on each path: \n'+acc_te_str)
+
+
+        # -------- save model
         if epoch == 1 or epoch % 20 == 0 or epoch == args.epochs:
-            print('Evaluating...')
-            acc_tr, acc_te = val(backbone, head, trainloader), val(backbone, head, testloader)
-            acc_tr_str, acc_te_str = '', ''
-            for idx in range(args.num_heads):
-                acc_tr_str += '%.3f'%acc_tr[idx].avg+'\t'
-                acc_te_str += '%.2f'%acc_te[idx].avg+'\t'
-            print('training acc. on each path: \n'+acc_tr_str)
-            print('test     acc. on each path: \n'+acc_te_str)
-            # --------
             checkpoint = {'state_dict_backbone': backbone.state_dict(), 'state_dict_head': head.state_dict()}
-            torch.save(checkpoint, args.save_path+"-epoch-%d"%epoch+".pth")
+            args.model_path = 'epoch%d'%epoch+'.pth'
+            torch.save(checkpoint, os.path.join(args.save_path,args.model_path))
 
         scheduler.step()
         print('Current training model: ', args.save_path)
@@ -223,7 +248,7 @@ def train_epoch(backbone, head, trainloader, optim, criterion, epoch, adversary)
     writer.add_scalars('loss-ce', losses_ce_record, epoch)
     writer.add_scalar('loss-ortho', losses_ortho.avg, epoch)
     writer.add_scalar('loss-margin', losses_margin.avg, epoch)
-    print('Epoch %d/%d costs %fs.'%(epoch, args.epochs, batch_time.sum))
+    print('     Epoch %d/%d costs %fs.'%(epoch, args.epochs, batch_time.sum))
     print('     CE      loss of each path: \n'+losses_ce_str)
     print('     Avg. CE loss = %f.'%losses_ce_record['avg.'])
     print('     ORTHO   loss = %f.'%losses_ortho.avg)
@@ -237,14 +262,17 @@ def val(backbone, head, dataloader):
     backbone.eval()
     head.eval()
 
+    batch_time = AverageMeter()
+
     acc = []
     for idx in range(args.num_heads):
         measure = AverageMeter()
         acc.append(measure)
     
+    end = time.time()
     with torch.no_grad():
         
-        # -------- compute the accs. of train, test set
+        # -------- compute the accs.
         for test in dataloader:
             images, labels = test
             images, labels = images.cuda(), labels.cuda()
@@ -258,8 +286,39 @@ def val(backbone, head, dataloader):
                 prec1 = accuracy(logits.data, labels)[0]
                 acc[idx].update(prec1.item(), images.size(0))
             
+            # ----
+            batch_time.update(time.time()-end)
+            end = time.time()
+
+    print('     Validation costs %fs.'%(batch_time.sum))        
     return acc
 
+# ======== evaluate adversarial ========
+def val_adv(backbone, head, dataloader, adversary_val):
+
+    backbone.eval()
+    head.eval()
+
+    top1 = AverageMeter()
+    batch_time = AverageMeter()
+
+    end = time.time()
+    for _, test in enumerate(dataloader):
+        images, labels = test
+        images, labels = images.cuda(), labels.cuda()
+
+        perturbed_images = adversary_val.perturb(images, labels)
+
+        logits = head(backbone(perturbed_images), 0)
+        prec1 = accuracy(logits.data, labels)[0]
+        top1.update(prec1.item(), images.size(0))
+
+        # ----
+        batch_time.update(time.time()-end)
+        end = time.time()
+    
+    print('     Adversarial validation costs %fs.'%(batch_time.sum))
+    return top1.avg    
 
 # ======== startpoint
 if __name__ == '__main__':
