@@ -160,7 +160,9 @@ def main():
         acc_te = val(backbone, head, testloader)
         acc_te_str = ''
         for idx in range(args.num_heads):
+            valstats['cleanacc-path-%d'%idx] = acc_te[idx].avg
             acc_te_str += '%.2f'%acc_te[idx].avg+'\t'
+        writer.add_scalars('valacc', valstats, epoch)
         print('     Current test acc. on each path: \n'+acc_te_str)
 
 
