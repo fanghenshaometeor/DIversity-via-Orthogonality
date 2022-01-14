@@ -20,9 +20,6 @@ import torchvision.transforms as transforms
 
 from advertorch.utils import NormalizeByChannelMeanStd
 
-import dio_vgg
-import dio_resnet
-import dio_resnet_v1
 import dio_wideresnet
 import dio_preactresnet
 
@@ -66,7 +63,6 @@ def cifar10_dataloaders(data_dir, batch_size=256):
 
 def cifar100_dataloaders(data_dir, batch_size=256):
 
-     batch_size=128
      train_transform = transforms.Compose([
           transforms.RandomCrop(32, padding=4),
           transforms.RandomHorizontalFlip(),
@@ -80,6 +76,21 @@ def cifar100_dataloaders(data_dir, batch_size=256):
 
      train_set = CIFAR100(data_dir, train=True, transform=train_transform, download=True)
      test_set = CIFAR100(data_dir, train=False, transform=test_transform, download=True)
+
+     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+
+     return train_loader, test_loader
+
+def svhn_dataloaders(data_dir, batch_size=256):
+
+     transform = transforms.Compose([
+          transforms.ToTensor()
+     ])
+     train_set = datasets.SVHN(root=data_dir, split='train', download=True, 
+                         transform=transform)
+     test_set = datasets.SVHN(root=data_dir, split='test', download=True, 
+                         transform=transform)
 
      train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
      test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
@@ -121,6 +132,9 @@ def get_datasets(args):
      elif args.dataset == 'CIFAR100':
           return cifar100_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
 
+     elif args.dataset == 'SVHN':
+          return svhn_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
+
      elif args.dataset == 'TinyImagenet':
           return tiny_imagenet_dataloaders(batch_size=args.batch_size, num_workers=args.workers, permutation_seed=args.randomseed)
      else:
@@ -141,6 +155,11 @@ def get_model(args):
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762])
 
+     elif args.dataset == 'SVHN':
+          num_class = 10
+          dataset_normalization = NormalizeByChannelMeanStd(
+               mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+
      elif args.dataset == 'TinyImagenet':
           num_class = 200
           dataset_normalization = NormalizeByChannelMeanStd(
@@ -148,17 +167,8 @@ def get_model(args):
 
      if args.arch == 'preactresnet18':
           backbone, head = dio_preactresnet.__dict__[args.arch](num_classes=num_class,num_classifiers=args.num_heads)
-
-     elif args.arch == 'resnet18':
-          net = dio_resnet.__dict__[args.arch](num_class=num_class)
-     
-     elif args.arch == 'resnet20':
-          net = dio_resnet_v1.__dict__[args.arch](num_class=num_class)
-
-     elif 'vgg' in args.arch:
-          net = dio_vgg.__dict__[args.arch](num_classes=num_class)
      elif 'wrn' in args.arch:
-          backbone, head = dio_wideresnet.__dict__[args.arch](num_classes=num_class)
+          backbone, head = dio_wideresnet.__dict__[args.arch](num_classes=num_class,num_classifiers=args.num_heads)
      else:
           assert False, "Unknown model : {}".format(args.arch)
 
@@ -204,15 +214,6 @@ def accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
-
-def get_net_param_vec(net):
-     net_vec = []
-     with torch.no_grad():
-          for _, param in net.named_parameters():
-               param = param.view(-1)
-               net_vec.append(param.detach().cpu().numpy())
-          net_vec = np.concatenate(net_vec, 0)
-     return net_vec
 
 ########################################################################################################
 ########################################################################################################
