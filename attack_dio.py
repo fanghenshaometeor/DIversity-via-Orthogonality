@@ -53,16 +53,16 @@ parser.add_argument('--test_gamma', default=2., type=float, help='step size of a
 args = parser.parse_args()
 
 # -------- initialize output store dir.
+save_name = os.path.split(args.model_path)[-1].replace(".pth", "-"+args.attack_type.upper()+".log")
+save_param = os.path.split(os.path.split(args.model_path)[-2])[-1]
 if 'adv' in args.model_path:
-    if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch+'-adv')):
-        os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch+'-adv'))
-    args.output_path = os.path.split(args.model_path)[-1].replace(".pth", "-"+args.attack_type.upper()+".log")
-    args.output_path = os.path.join(args.output_dir,args.dataset,args.arch+'-adv',args.output_path)
+    if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch+'-adv',save_param)):
+        os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch+'-adv',save_param))
+    args.output_path = os.path.join(args.output_dir,args.dataset,args.arch+'-adv',save_param,save_name)
 else:
-    if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch)):
-        os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch))
-    args.output_path = os.path.split(args.model_path)[-1].replace(".pth", "-"+args.attack_type.upper()+".log")
-    args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,args.output_path)
+    if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch,save_param)):
+        os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch,save_param))
+    args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,save_param,save_name)
 sys.stdout = Logger(filename=args.output_path,stream=sys.stdout)
 
 
@@ -88,6 +88,8 @@ def main():
     print('-------- MODEL INFORMATION --------')
     print('---- architecture: '+args.arch)
     print('---- saved   path: '+args.model_path)
+    if 'best' in args.model_path:
+        print('---- best robust acc. achieved at epoch-%d.'%checkpoint['best-epoch'])
 
     args.test_eps /= 255.
     args.test_gamma /= 255.
