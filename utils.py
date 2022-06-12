@@ -22,6 +22,8 @@ from advertorch.utils import NormalizeByChannelMeanStd
 
 import dio_wideresnet
 import dio_preactresnet
+import preactresnet
+import wideresnet
 
 # -------- fix random seed 
 def setup_seed(seed):
@@ -131,12 +133,7 @@ def get_datasets(args):
 
      elif args.dataset == 'CIFAR100':
           return cifar100_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
-
-     elif args.dataset == 'SVHN':
-          return svhn_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
-
-     elif args.dataset == 'TinyImagenet':
-          return tiny_imagenet_dataloaders(batch_size=args.batch_size, num_workers=args.workers, permutation_seed=args.randomseed)
+     
      else:
           assert False, "Unknown dataset : {}".format(args.dataset)
 
@@ -146,29 +143,29 @@ def get_datasets(args):
 ########################################################################################################
 def get_model(args):
      if args.dataset == 'CIFAR10':
-          num_class = 10
+          args.num_classes = 10
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])
 
      elif args.dataset == 'CIFAR100':
-          num_class = 100
+          args.num_classes = 100
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762])
 
      elif args.dataset == 'SVHN':
-          num_class = 10
+          args.num_classes = 10
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 
      elif args.dataset == 'TinyImagenet':
-          num_class = 200
+          args.num_classes = 200
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.4802, 0.4481, 0.3975], std=[0.2302, 0.2265, 0.2262])
 
      if args.arch == 'preactresnet18':
-          backbone, head = dio_preactresnet.__dict__[args.arch](num_classes=num_class,num_classifiers=args.num_heads)
+          backbone, head = dio_preactresnet.__dict__[args.arch](num_classes=args.num_classes,num_classifiers=args.num_heads)
      elif 'wrn' in args.arch:
-          backbone, head = dio_wideresnet.__dict__[args.arch](num_classes=num_class,num_classifiers=args.num_heads)
+          backbone, head = dio_wideresnet.__dict__[args.arch](num_classes=args.num_classes,num_classifiers=args.num_heads)
      else:
           assert False, "Unknown model : {}".format(args.arch)
 
@@ -178,7 +175,37 @@ def get_model(args):
      # return net
      return backbone, head
 
+def get_source_model(args):
+     if args.dataset == 'CIFAR10':
+          args.num_classes = 10
+          dataset_normalization = NormalizeByChannelMeanStd(
+               mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])
 
+     elif args.dataset == 'CIFAR100':
+          args.num_classes = 100
+          dataset_normalization = NormalizeByChannelMeanStd(
+               mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762])
+     
+     elif args.dataset == 'SVHN':
+          args.num_classes = 10
+          dataset_normalization = NormalizeByChannelMeanStd(
+               mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+
+     elif args.dataset == 'TinyImagenet':
+          args.num_classes = 200
+          dataset_normalization = NormalizeByChannelMeanStd(
+               mean=[0.4802, 0.4481, 0.3975], std=[0.2302, 0.2265, 0.2262])
+
+     if args.arch == 'preactresnet18':
+          net = preactresnet.__dict__[args.arch](num_classes=args.num_classes)
+     elif 'wrn' in args.arch:
+          net = wideresnet.__dict__[args.arch](num_classes=args.num_classes)
+     else:
+          assert False, "Unknown model : {}".format(args.arch)
+
+     net.normalize = dataset_normalization
+
+     return net
 ########################################################################################################
 ########################################################################################################
 ########################################################################################################
