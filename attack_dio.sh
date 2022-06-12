@@ -1,36 +1,29 @@
-# --------- CIFAR10-vgg/resnet -----------------
-arch=preactresnet18
-# model_path='./save/CIFAR10/preactresnet18/p-10-a-0.1-b-0.1-tau-0.5/epoch100.pth'
-model_path='./save/CIFAR100/preactresnet18/p-10-a-0.1-b-0.1-tau-0.5/epoch100.pth'
-# -------- hyper-parameters ---------------------
-# num_heads=1
-# num_heads=5
-num_heads=10
-# num_heads=20
-# num_heads=40
-# -------- CIFAR10 ------------------------------
-# dataset=CIFAR10
-# data_dir='~/KunFang/data/CIFAR10/'
-# -------- CIFAR100 -----------------------------
-dataset=CIFAR100
-data_dir='~/KunFang/data/CIFAR100/'
-# -------- SVNH ---------------------------------
-# dataset=SVHN
-# data_dir='/media/Disk1/KunFang/data/SVHN/'
-# -----------------------------------------------
-attack_type='fgsm'
-# attack_type='pgd'
-# attack_type='cw'
-# attack_type='square'
-# attack_type='fab'
-# attack_type='aa'
-# -----------------------------------------------
+# --------- Attack on DIO models
 
-CUDA_VISIBLE_DEVICES=0 python attack_dio.py \
-    --arch ${arch} \
-    --model_path ${model_path} \
-    --dataset ${dataset} \
-    --data_dir ${data_dir} \
-    --num_heads ${num_heads} \
-    --attack_type ${attack_type}
+# --------- Attack vanilla-trained CIFAR10/CIFAR100-PRN18 DIO models
+CUDA_VISIBLE_DEVICES=2 python attack_dio.py --arch preactresnet18 --num_heads 10 --dataset CIFAR10 --data_dir '~/KunFang/data/CIFAR10/' \
+                    --model_path './save/CIFAR10/preactresnet18/p-10-a-0.1-b-0.1-tau-0.2/epoch100.pth' \
+                    --attack_type 'None' #['None', 'fgsm', 'cw', 'square']
+CUDA_VISIBLE_DEVICES=2 python attack_dio.py --arch preactresnet18 --num_heads 40 --dataset CIFAR100 --data_dir '~/KunFang/data/CIFAR100/' \
+                    --model_path './save/CIFAR10/preactresnet18/p-40-a-0.1-b-0.1-tau-0.01/epoch100.pth' \
+                    --attack_type 'None' #['None', 'fgsm', 'cw', 'square']
+
+# -------- Attack adversarial-trained CIFAR10-PRN18/WRN34X10 DIO models (AT+DIO)
+# ---- CIFAR10-PRN18 last model
+CUDA_VISIBLE_DEVICES=2 python attack_dio.py --arch preactresnet18 --num_heads 10 --dataset CIFAR10 --data_dir '~/KunFang/data/CIFAR10/' \
+                    --model_path './save/CIFAR10/preactresnet18-adv/p-10-a-0.1-b-0.1-tau-0.2/epoch100.pth' \        # last model
+                    --attack_type 'None' #['None', 'pgd, 'pgd100', 'square', 'aa']
+# ---- CIFAR10-PRN18 best model
+CUDA_VISIBLE_DEVICES=2 python attack_dio.py --arch preactresnet18 --num_heads 10 --dataset CIFAR10 --data_dir '~/KunFang/data/CIFAR10/' \
+                    --model_path './save/CIFAR10/preactresnet18-adv/p-10-a-0.1-b-0.1-tau-0.2/best.pth' \            # best model
+                    --attack_type 'None' #['None', 'pgd, 'pgd100', 'square', 'aa']
+# ---- CIFAR10-WRN34X10 last model
+CUDA_VISIBLE_DEVICES=2 python attack_dio.py --arch wrn34x10 --num_heads 10 --dataset CIFAR10 --data_dir '~/KunFang/data/CIFAR10/' \
+                    --model_path './save/CIFAR10/wrn34x10-adv/p-10-a-0.1-b-0.1-tau-0.5/epoch100.pth' \        # last model
+                    --attack_type 'None' #['None', 'pgd, 'pgd100', 'square', 'aa']
+# ---- CIFAR10-WRN34X10 best model
+CUDA_VISIBLE_DEVICES=2 python attack_dio.py --arch wrn34x10 --num_heads 10 --dataset CIFAR10 --data_dir '~/KunFang/data/CIFAR10/' \
+                    --model_path './save/CIFAR10/wrn34x10-adv/p-10-a-0.1-b-0.1-tau-0.5/best.pth' \        # last model
+                    --attack_type 'None' #['None', 'pgd, 'pgd100', 'square', 'aa']
+
 
