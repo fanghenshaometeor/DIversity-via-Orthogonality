@@ -175,7 +175,7 @@ def get_model(args):
      # return net
      return backbone, head
 
-def get_source_model(args):
+def get_baseline_model(args):
      if args.dataset == 'CIFAR10':
           args.num_classes = 10
           dataset_normalization = NormalizeByChannelMeanStd(
