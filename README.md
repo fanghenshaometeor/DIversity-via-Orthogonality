@@ -55,7 +55,7 @@ sh adapt_attack.sh
 
 DIO is a **model-augmented** adversarial defense and could cooperate with other **data-augmented** defenses together to even boost the adversarial robustness.
 
-In this work, several representative data-augmented defenses are selected:
+In this work, several representative data-augmented defenses are considered:
 - PGD-based adversarial training (AT)
 - TRADES 
 - AWP
@@ -87,6 +87,8 @@ If u have problems about the codes or paper, u could contact me (fanghenshao@sjt
 If u find the codes useful, welcome to fork and star this repo and cite our paper! :)
 
 Lots of thanks from the REAL DIO!!!
+
+![avatar](./pics/REAL-DIO.png)
 
 <!-- # Dependencies
 - python 3.6 (miniconda)
