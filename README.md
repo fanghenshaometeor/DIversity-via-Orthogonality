@@ -1,44 +1,8 @@
-# Diversity-Via-Orthogonality
+# DIversity-via-Orthogonality (DIO)
 
-This repo provides the PyTorch codes of the paper [*Towards Robust Neural Networks Via Orthogonal Diversity*](https://arxiv.org/abs/2010.12190).
+PyTorch implementation of the paper [*Towards Robust Neural Networks Via Orthogonal Diversity*](https://arxiv.org/abs/2010.12190).
 
-## What
-
-A brief description for the files in this repo:
-
-- `train.sh` \& `train.py` training scripts
-- `attack_dio.sh` \& `attack_dio.py` attacking scripts
-- `attackers.py` attacking functions
-
-## How
-
-A brief description on how to train and attack the model.
-
-### Training
-
-To reproduce the training, users can run the `train.sh` shell scripts directly on the command line.
-```
-sh train.sh
-```
-
-Detailed training settings (model, data set and whether to perform adversarial training) and hyper-parameter ($\alpha,\beta,\tau,\tau_a$ and number of heads) could be specified freely in the `train.sh` script.
-
-In the following table, we list the hyper-parameters used in training the models described in the paper.
-
-### attacking
-
-To attack the model, users can run the `attack_dio.sh` shell scripts directly on the command line.
-```
-sh attack_dio.sh
-```
-
-Detailed attacking settings could be specified freely by commenting some lines in the `attack_dio.sh` script.
-
-## 
-
-If u have problems about the codes or paper, u could contact me (fanghenshao@sjtu.edu.cn) or raise issues in GitHub.
-
-If u find the codes useful, welcome to fork and star this repo and cite our paper! :)
+If our work is helpful for your research, please consider citing:
 
 ```
 @article{fang2020towards,
@@ -48,6 +12,82 @@ If u find the codes useful, welcome to fork and star this repo and cite our pape
   year={2020}
 }
 ```
+
+## Table of Content
+  - [1. Introduction](#1introduction)
+  - [2. File descriptions](#2file-descriptions)
+  - [3. Training and attack](#3training-and-attack)
+  - [4. DIO and other defenses](#4dio-and-other-defenses)
+
+## 1. Introduction
+
+
+## 2. File descriptions
+
+- `train.sh\py` training scripts
+- `attack_dio.sh\py` attack scripts 
+- `adapt_attack*` adaptive attack scripts
+- `model/dio_*.py` DIO model definitions
+
+## 3. Training and attack
+
+### Training
+
+```
+sh train.sh
+```
+
+Detailed training settings (model, data set and whether to perform adversarial training) and hyper-parameter ($\alpha,\beta,\tau$ and number of heads) have been specified in the `train.sh` script.
+
+### Attack
+
+```
+sh attack_dio.sh
+```
+
+### Adaptive attack
+
+```
+sh adapt_attack.sh
+```
+
+## 3. DIO and other defenses
+
+DIO is a **model-augmented** adversarial defense and could cooperate with other **data-augmented** defenses together to even boost the adversarial robustness.
+
+In this work, several representative data-augmented defenses are selected:
+- PGD-based adversarial training (AT)
+- TRADES 
+- AWP
+- LBGAT
+- GAIRAT
+
+We reproduce these defenses based on their source codes and equip DIO with these carefully-designed data augmentation techniques. The training and attack codes are also provided in the corresponding folders in this repo:
+- DIO+TRADES
+- DIO+AWP
+- DIO+LBGAT
+- DIO+GAIRAT
+
+Run
+```
+sh train_*_dio.sh
+```
+and 
+```
+sh attack_*_dio.sh
+```
+in these folders to train and attack the corresponding equipped DIO models respectively.
+
+A complete list of the chosen hyper-parameters for different models could be found in the Table 4 in the appendix of the paper.
+
+## 
+
+If u have problems about the codes or paper, u could contact me (fanghenshao@sjtu.edu.cn) or raise issues here.
+
+If u find the codes useful, welcome to fork and star this repo and cite our paper! :)
+
+Lots of thanks from the REAL DIO!!!
+
 <!-- # Dependencies
 - python 3.6 (miniconda)
 - PyTorch 1.5.0
