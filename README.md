@@ -14,10 +14,10 @@ If our work is helpful for your research, please consider citing:
 ```
 
 ## Table of Content
-  - [1. Introduction](#1introduction)
-  - [2. Requisite](#2requisite)
-  - [3. Training and attack](#3training-and-attack)
-  - [4. DIO and other defenses](#4dio-and-other-defenses)
+  - [1. Introduction](#1-introduction)
+  - [2. Requisite](#2-requisite)
+  - [3. Training and attack](#3-training-and-attack)
+  - [4. DIO and other defenses](#4-dio-and-other-defenses)
 
 ## 1. Introduction
 
