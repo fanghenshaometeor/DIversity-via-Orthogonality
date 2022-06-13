@@ -15,19 +15,28 @@ If our work is helpful for your research, please consider citing:
 
 ## Table of Content
   - [1. Introduction](#1introduction)
-  - [2. File descriptions](#2file-descriptions)
+  - [2. Requisite](#2requisite)
   - [3. Training and attack](#3training-and-attack)
   - [4. DIO and other defenses](#4dio-and-other-defenses)
 
 ## 1. Introduction
 
 
-## 2. File descriptions
+## 2. Requisite
 
+A brief description for the files is listed below:
 - `train.sh\py` training scripts
 - `attack_dio.sh\py` attack scripts 
 - `adapt_attack*` adaptive attack scripts
 - `model/dio_*.py` DIO model definitions
+
+Dependencies mainly include:
+- Python (miniconda)
+- PyTorch
+- [AdverTorch](https://github.com/BorealisAI/advertorch)
+- [AutoAttack](https://github.com/fra31/auto-attack)
+
+For more specific dependency, please refer to the environment.yml.
 
 ## 3. Training and attack
 
@@ -37,7 +46,7 @@ If our work is helpful for your research, please consider citing:
 sh train.sh
 ```
 
-Detailed training settings (model, data set and whether to perform adversarial training) and hyper-parameter ($\alpha,\beta,\tau$ and number of heads) have been specified in the `train.sh` script.
+Detailed training settings (model, data set and whether to perform adversarial training) and hyper-parameters ($\alpha,\beta,\tau$ and $L$) have been specified in the `train.sh` script.
 
 ### Attack
 
@@ -51,22 +60,22 @@ sh attack_dio.sh
 sh adapt_attack.sh
 ```
 
-## 3. DIO and other defenses
+## 4. DIO and other defenses
 
 DIO is a **model-augmented** adversarial defense and could cooperate with other **data-augmented** defenses together to even boost the adversarial robustness.
 
 In this work, several representative data-augmented defenses are considered:
 - PGD-based adversarial training (AT)
-- TRADES 
-- AWP
-- LBGAT
-- GAIRAT
+- TRADES: [ICML'19 paper](http://proceedings.mlr.press/v97/zhang19p/zhang19p.pdf), [codes](https://github.com/yaodongyu/TRADES/)
+- AWP: [NeurIPS'20 paper](https://proceedings.neurips.cc/paper/2020/file/1ef91c212e30e14bf125e9374262401f-Paper.pdf), [codes](https://github.com/csdongxian/AWP)
+- LBGAT: [CVPR'21 paper](https://openaccess.thecvf.com/content/ICCV2021/papers/Cui_Learnable_Boundary_Guided_Adversarial_Training_ICCV_2021_paper.pdf), [codes](https://github.com/dvlab-research/LBGAT)
+- GAIRAT: [ICLR'20 paper](https://arxiv.org/pdf/2010.01736.pdf), [codes](https://github.com/zjfheart/Geometry-aware-Instance-reweighted-Adversarial-Training)
 
 We reproduce these defenses based on their source codes and equip DIO with these carefully-designed data augmentation techniques. The training and attack codes are also provided in the corresponding folders in this repo:
-- DIO+TRADES
-- DIO+AWP
-- DIO+LBGAT
-- DIO+GAIRAT
+- [DIO+TRADES](./DIO+TRADES/)
+- [DIO+AWP](./DIO+AWP/)
+- [DIO+LBGAT](./DIO+LBGAT/)
+- [DIO+GAIRAT](./DIO+GAIRAT/)
 
 Run
 ```
