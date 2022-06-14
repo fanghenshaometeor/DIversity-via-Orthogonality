@@ -33,7 +33,7 @@ from advertorch.attacks import LinfPGDAttack
 torch.set_default_tensor_type(torch.FloatTensor)
 
 # ======== options ==============
-parser = argparse.ArgumentParser(description='Training Enhanced OMP')
+parser = argparse.ArgumentParser(description='Training DIO+TRADES')
 # -------- file param. --------------
 parser.add_argument('--data_dir',type=str,default='/media/Disk1/KunFang/data/CIFAR10/',help='file path for data')
 parser.add_argument('--model_dir',type=str,default='./save/',help='file path for saving model')

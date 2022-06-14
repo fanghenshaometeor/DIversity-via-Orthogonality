@@ -23,9 +23,7 @@ from utils import get_datasets, get_model
 from utils import AverageMeter, accuracy
 from utils import Logger
 
-from advertorch.attacks import GradientSignAttack
 from advertorch.attacks import LinfPGDAttack
-from advertorch.attacks import CarliniWagnerL2Attack
 
 from autoattack import AutoAttack
 
@@ -33,7 +31,7 @@ from autoattack import AutoAttack
 torch.set_default_tensor_type(torch.FloatTensor)
 
 # ======== options ==============
-parser = argparse.ArgumentParser(description='Attack Deep Neural Networks')
+parser = argparse.ArgumentParser(description='Attack DIO+TRADES')
 # -------- file param. --------------
 parser.add_argument('--data_dir',type=str,default='/media/Disk1/KunFang/data/CIFAR10/',help='file path for data')
 parser.add_argument('--output_dir',type=str,default='./output/',help='folder to store output')
@@ -56,14 +54,9 @@ args = parser.parse_args()
 # -------- initialize output store dir.
 save_name = os.path.split(args.model_path)[-1].replace(".pth", "-"+args.attack_type.upper()+".log")
 save_param = os.path.split(os.path.split(args.model_path)[-2])[-1]
-if 'adv' in args.model_path:
-    if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch+'-adv',save_param)):
-        os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch+'-adv',save_param))
-    args.output_path = os.path.join(args.output_dir,args.dataset,args.arch+'-adv',save_param,save_name)
-else:
-    if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch,save_param)):
-        os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch,save_param))
-    args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,save_param,save_name)
+if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch,'TRADES+DIO',save_param)):
+    os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch,'TRADES+DIO',save_param))
+args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,'TRADES+DIO',save_param,save_name)
 sys.stdout = Logger(filename=args.output_path,stream=sys.stdout)
 
 
@@ -112,22 +105,6 @@ def main():
         print("mean/std. acc. on clean training set:\t"+"%.2f"%np.mean(acc_tr_val)+"\t"+"%.2f"%np.std(acc_tr_val))
         print("mean/std. acc. on clean test     set:\t"+"%.2f"%np.mean(acc_te_val)+"\t"+"%.2f"%np.std(acc_te_val))
 
-    elif args.attack_type == 'fgsm':
-        print('-------- START ATTACKING --------')
-        print('-------- ADVERSARY INFORMATION --------')
-        print('---- FGSM attack with bound %d/255.'%(args.test_eps*255))
-        # --------
-        print('-------- START FGSM ATTACK...')
-        print('-------- Randomly-forward...')
-        acc_fgsm = attack(backbone, head, testloader)
-        acc_fgsm_str = ''
-        for head_idx in range(args.num_heads):
-            acc = acc_fgsm[head_idx]
-            acc_fgsm_str += '%.2f'%acc+'\t'
-        print('--------')
-        print('Attacked acc. on each path: \n'+acc_fgsm_str)
-        print("Attacked mean/std.    acc.:\t"+"%.2f"%np.mean(acc_fgsm)+"\t"+"%.2f"%np.std(acc_fgsm))
-
     elif args.attack_type == 'pgd':
         print('-------- START ATTACKING --------')
         print('-------- ADVERSARY INFORMATION --------')
@@ -161,22 +138,6 @@ def main():
         print('Attacked acc. on each path: \n'+acc_pgd_str)
         print("Attacked mean/std.    acc.:\t"+"%.2f"%np.mean(acc_pgd)+"\t"+"%.2f"%np.std(acc_pgd))
 
-    elif args.attack_type == 'cw':
-        print('-------- START ATTACKING --------')
-        print('-------- ADVERSARY INFORMATION --------')
-        print('---- C&W attack with default settings in AdverTorch (L2 attack with max-iterations=3).')
-        # --------
-        print('-------- START C&W ATTACK...')
-        print('-------- Randomly-forward...')
-        acc_cw = attack(backbone, head, testloader)
-        acc_cw_str = ''
-        for head_idx in range(args.num_heads):
-            acc = acc_cw[head_idx]
-            acc_cw_str += '%.2f'%acc+'\t'
-        print('--------')
-        print('Attacked acc. on each path: \n'+acc_cw_str)
-        print("Attacked mean/std.    acc.:\t"+"%.2f"%np.mean(acc_cw)+"\t"+"%.2f"%np.std(acc_cw))
-
     elif args.attack_type == 'square':
         print('-------- START ATTACKING --------')
         print('-------- ADVERSARY INFORMATION --------')
@@ -208,6 +169,9 @@ def main():
         print('--------')
         print('Attacked acc. on each path: \n'+acc_aa_str)
         print("Attacked mean/std.    acc.:\t"+"%.2f"%np.mean(acc_aa)+"\t"+"%.2f"%np.std(acc_aa))
+    
+    else:
+        assert False, "Unknown attack : {}".format(args.attack_type)
 
     print('-------- Results saved path: ', args.output_path)
     print('-------- FINISHED.')
@@ -254,20 +218,10 @@ def attack(backbone, head, testloader):
     for _ in range(args.num_heads):
         top1.append(AverageMeter())
 
-    if args.attack_type == 'fgsm':
-        def forward(input):
-            return head(backbone(input), 'random')
-        adversary = GradientSignAttack(forward, loss_fn=nn.CrossEntropyLoss(), eps=args.test_eps, clip_min=0.0, clip_max=1.0, targeted=False)
-    
-    elif args.attack_type == 'pgd' or args.attack_type == 'pgd100':
+    if args.attack_type == 'pgd' or args.attack_type == 'pgd100':
         def forward(input):
             return head(backbone(input), 'random')
         adversary = LinfPGDAttack(forward, loss_fn=nn.CrossEntropyLoss(), eps=args.test_eps, nb_iter=args.test_step, eps_iter=args.test_gamma, rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False)
-
-    elif args.attack_type == 'cw':
-        def forward(input):
-            return head(backbone(input), 'random')
-        adversary = CarliniWagnerL2Attack(forward, num_classes=args.num_classes, max_iterations=3)
 
     elif args.attack_type == 'square':
         def forward(input):
@@ -280,6 +234,9 @@ def attack(backbone, head, testloader):
             return head(backbone(input), 'random')
         adversary = AutoAttack(forward, norm='Linf', eps=args.test_eps, version='standard', verbose=False)
 
+    else:
+        assert False, "Unknown attack : {}".format(args.attack_type)
+
     for test in testloader:
         image, label = test
         image, label = image.cuda(), label.cuda()
@@ -289,6 +246,8 @@ def attack(backbone, head, testloader):
             perturbed_image = adversary.perturb(image, label)
         elif args.attack_type == 'square' or args.attack_type == 'aa':
             perturbed_image = adversary.run_standard_evaluation(image, label, bs=image.size(0))
+        else:
+            assert False, "Unknown attack : {}".format(args.attack_type)
 
         # re-classify
         all_logits = head(backbone(perturbed_image), 'all')
