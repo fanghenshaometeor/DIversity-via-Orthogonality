@@ -24,12 +24,6 @@ If our work is helpful for your research, please consider citing:
 
 ## 2. Requisite
 
-A brief description for the files is listed below:
-- `train.sh\py` training scripts
-- `attack_dio.sh\py` attack scripts 
-- `adapt_attack*` adaptive attack scripts
-- `model/dio_*.py` DIO model definitions
-
 Dependencies mainly include:
 - Python (miniconda)
 - PyTorch
@@ -39,6 +33,12 @@ Dependencies mainly include:
 For more specific dependency, please refer to the [environment.yml](./environment.yml).
 
 ## 3. Training and attack
+
+A brief description for the files is listed below:
+- `train.sh\py` training scripts
+- `attack_dio.sh\py` attack scripts 
+- `adapt_attack*` adaptive attack scripts
+- `model/dio_*.py` DIO model definitions
 
 ### Training
 
