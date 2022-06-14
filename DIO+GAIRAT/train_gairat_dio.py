@@ -67,15 +67,15 @@ parser.add_argument('--begin_epoch', type=int, default=50, help='when to use GAI
 args = parser.parse_args()
 
 # ======== log writer init. ========
-writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, 'GAIRAT+DIO', \
+writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, 'DIO+GAIRAT', \
     'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+'-tau-'+str(args.tau)+'/'))
 # ----
 model_name = 'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+'-tau-'+str(args.tau)
 # ----
-if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,'GAIRAT+DIO',model_name)):
-    os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,'GAIRAT+DIO',model_name))
+if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+GAIRAT',model_name)):
+    os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+GAIRAT',model_name))
 # ----
-args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,'GAIRAT+DIO',model_name)
+args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,'DIO+GAIRAT',model_name)
 
 # -------- main function
 def main():
