@@ -36,7 +36,7 @@ Dependencies mainly include:
 - [AdverTorch](https://github.com/BorealisAI/advertorch)
 - [AutoAttack](https://github.com/fra31/auto-attack)
 
-For more specific dependency, please refer to the environment.yml.
+For more specific dependency, please refer to the [environment.yml](./environment.yml).
 
 ## 3. Training and attack
 
@@ -95,7 +95,7 @@ If u have problems about the codes or paper, u could contact me (fanghenshao@sjt
 
 If u find the codes useful, welcome to fork and star this repo and cite our paper! :)
 
-Lots of thanks from the REAL DIO!!!
+Lots of thanks from REAL DIO!!!
 
 ![avatar](./pics/REAL-DIO.png)
 
