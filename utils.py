@@ -84,56 +84,11 @@ def cifar100_dataloaders(data_dir, batch_size=256):
 
      return train_loader, test_loader
 
-def svhn_dataloaders(data_dir, batch_size=256):
-
-     transform = transforms.Compose([
-          transforms.ToTensor()
-     ])
-     train_set = datasets.SVHN(root=data_dir, split='train', download=True, 
-                         transform=transform)
-     test_set = datasets.SVHN(root=data_dir, split='test', download=True, 
-                         transform=transform)
-
-     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
-
-     return train_loader, test_loader
-
-def tiny_imagenet_dataloaders(batch_size=128, num_workers=2, data_dir = 'datasets/tiny-imagenet-200', permutation_seed=10):
-
-    train_transform = transforms.Compose([
-        transforms.RandomCrop(64, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-    ])
-
-    test_transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
-
-    train_path = os.path.join(data_dir, 'train')
-    val_path = os.path.join(data_dir, 'val')
-
-    np.random.seed(permutation_seed)
-    split_permutation = list(np.random.permutation(100000))
-
-    train_set = Subset(ImageFolder(train_path, transform=train_transform), split_permutation[:90000])
-    val_set = Subset(ImageFolder(train_path, transform=test_transform), split_permutation[90000:])
-    test_set = ImageFolder(val_path, transform=test_transform)
-
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
-    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
-
-    return train_loader, val_loader, test_loader
-
 def get_datasets(args):
      if args.dataset == 'CIFAR10':
           return cifar10_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
-
      elif args.dataset == 'CIFAR100':
           return cifar100_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
-     
      else:
           assert False, "Unknown dataset : {}".format(args.dataset)
 
@@ -146,22 +101,13 @@ def get_model(args):
           args.num_classes = 10
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])
-
      elif args.dataset == 'CIFAR100':
           args.num_classes = 100
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762])
-
-     elif args.dataset == 'SVHN':
-          args.num_classes = 10
-          dataset_normalization = NormalizeByChannelMeanStd(
-               mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-
-     elif args.dataset == 'TinyImagenet':
-          args.num_classes = 200
-          dataset_normalization = NormalizeByChannelMeanStd(
-               mean=[0.4802, 0.4481, 0.3975], std=[0.2302, 0.2265, 0.2262])
-
+     else:
+          assert False, "Unknown dataset : {}".format(args.dataset)
+     
      if args.arch == 'preactresnet18':
           backbone, head = dio_preactresnet.__dict__[args.arch](num_classes=args.num_classes,num_classifiers=args.num_heads)
      elif 'wrn' in args.arch:
@@ -180,21 +126,12 @@ def get_baseline_model(args):
           args.num_classes = 10
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])
-
      elif args.dataset == 'CIFAR100':
           args.num_classes = 100
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762])
-     
-     elif args.dataset == 'SVHN':
-          args.num_classes = 10
-          dataset_normalization = NormalizeByChannelMeanStd(
-               mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-
-     elif args.dataset == 'TinyImagenet':
-          args.num_classes = 200
-          dataset_normalization = NormalizeByChannelMeanStd(
-               mean=[0.4802, 0.4481, 0.3975], std=[0.2302, 0.2265, 0.2262])
+     else:
+          assert False, "Unknown dataset : {}".format(args.dataset)
 
      if args.arch == 'preactresnet18':
           net = preactresnet.__dict__[args.arch](num_classes=args.num_classes)
@@ -250,7 +187,7 @@ class Logger(object):
      def __init__(self, filename='default.log', stream=sys.stdout):
           self.terminal = stream
           self.log = open(filename, 'a')
-     
+
      def write(self, message):
           self.terminal.write(message)
           self.log.write(message)

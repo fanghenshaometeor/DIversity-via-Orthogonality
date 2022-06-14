@@ -34,7 +34,7 @@ from advertorch.context import ctx_noparamgrad_and_eval
 torch.set_default_tensor_type(torch.FloatTensor)
 
 # ======== options ==============
-parser = argparse.ArgumentParser(description='Training Enhanced OMP')
+parser = argparse.ArgumentParser(description='Training DIO')
 # -------- file param. --------------
 parser.add_argument('--data_dir',type=str,default='/media/Disk1/KunFang/data/CIFAR10/',help='file path for data')
 parser.add_argument('--model_dir',type=str,default='./save/',help='file path for saving model')
@@ -134,6 +134,7 @@ def main():
         # -------- train
         print('Training(%d/%d)...'%(epoch, args.epochs))
         train_epoch(backbone, head, trainloader, optimizer, criterion, epoch, adversary)
+        scheduler.step()
 
         # -------- adversarial validation
         valstats = {}
@@ -172,7 +173,6 @@ def main():
             args.model_path = 'epoch%d'%epoch+'.pth'
             torch.save(checkpoint, os.path.join(args.save_path,args.model_path))
 
-        scheduler.step()
         print('Current training model: ', args.save_path)
         print('===========================================')
     

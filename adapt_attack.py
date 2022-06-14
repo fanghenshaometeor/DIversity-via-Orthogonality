@@ -25,11 +25,7 @@ from utils import Logger
 
 from adapt_attackers import pgd_adapt
 
-from advertorch.attacks import GradientSignAttack
 from advertorch.attacks import LinfPGDAttack
-from advertorch.attacks import CarliniWagnerL2Attack
-
-from autoattack import AutoAttack
 
 # ======== fix data type ========
 torch.set_default_tensor_type(torch.FloatTensor)
