@@ -60,15 +60,15 @@ parser.add_argument('--beta_trades', default=6.0, help='regularization, i.e., 1/
 args = parser.parse_args()
 
 # ======== initialize log writer
-writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, 'TRADES+DIO', \
+writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, 'DIO+TRADES', \
     'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+'-tau-'+str(args.tau)+'/'))
 # ----
 model_name = 'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+'-tau-'+str(args.tau)
 # ----
-if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,'TRADES+DIO',model_name)):
-    os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,'TRADES+DIO',model_name))
+if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+TRADES',model_name)):
+    os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+TRADES',model_name))
 # ----
-args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,'TRADES+DIO',model_name)
+args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,'DIO+TRADES',model_name)
 
 # -------- main function
 def main():

@@ -54,9 +54,9 @@ args = parser.parse_args()
 # -------- initialize output store dir.
 save_name = os.path.split(args.model_path)[-1].replace(".pth", "-"+args.attack_type.upper()+".log")
 save_param = os.path.split(os.path.split(args.model_path)[-2])[-1]
-if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch,'TRADES+DIO',save_param)):
-    os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch,'TRADES+DIO',save_param))
-args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,'TRADES+DIO',save_param,save_name)
+if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch,'DIO+TRADES',save_param)):
+    os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch,'DIO+TRADES',save_param))
+args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,'DIO+TRADES',save_param,save_name)
 sys.stdout = Logger(filename=args.output_path,stream=sys.stdout)
 
 

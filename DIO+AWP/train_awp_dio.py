@@ -64,15 +64,15 @@ parser.add_argument('--awp-warmup', default=0, type=int)
 args = parser.parse_args()
 
 # ======== initialize log writer
-writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, 'AWP+DIO', \
+writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, 'DIO+AWP', \
     'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+'-tau-'+str(args.tau)+'/'))
 # ----
 model_name = 'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+'-tau-'+str(args.tau)
 # ----
-if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,'AWP+DIO',model_name)):
-    os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,'AWP+DIO',model_name))
+if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+AWP',model_name)):
+    os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+AWP',model_name))
 # ----
-args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,'AWP+DIO',model_name)
+args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,'DIO+AWP',model_name)
 
 # -------- main function
 def main():
