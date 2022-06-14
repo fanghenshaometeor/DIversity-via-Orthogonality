@@ -33,7 +33,7 @@ from autoattack import AutoAttack
 torch.set_default_tensor_type(torch.FloatTensor)
 
 # ======== options ==============
-parser = argparse.ArgumentParser(description='Attack Deep Neural Networks')
+parser = argparse.ArgumentParser(description='Attack DIO+LBGAT')
 # -------- file param. --------------
 parser.add_argument('--data_dir',type=str,default='/media/Disk1/KunFang/data/CIFAR10/',help='file path for data')
 parser.add_argument('--output_dir',type=str,default='./output/',help='folder to store output')
@@ -56,9 +56,9 @@ args = parser.parse_args()
 # -------- initialize output store dir.
 save_name = os.path.split(args.model_path)[-1].replace(".pth", "-"+args.attack_type.upper()+".log")
 save_param = os.path.split(os.path.split(args.model_path)[-2])[-1]
-if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch,'AWP+DIO',save_param)):
-    os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch,'AWP+DIO',save_param))
-args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,'AWP+DIO',save_param,save_name)
+if not os.path.exists(os.path.join(args.output_dir,args.dataset,args.arch,'LBGAT+DIO',save_param)):
+    os.makedirs(os.path.join(args.output_dir,args.dataset,args.arch,'LBGAT+DIO',save_param))
+args.output_path = os.path.join(args.output_dir,args.dataset,args.arch,'LBGAT+DIO',save_param,save_name)
 sys.stdout = Logger(filename=args.output_path,stream=sys.stdout)
 
 # -------- main function
@@ -174,6 +174,9 @@ def main():
         print('Attacked acc. on each path: \n'+acc_aa_str)
         print("Attacked mean/std.    acc.:\t"+"%.2f"%np.mean(acc_aa)+"\t"+"%.2f"%np.std(acc_aa))
 
+    else:
+        assert False, "Unknown attack : {}".format(args.attack_type)
+
     print('-------- Results saved path: ', args.output_path)
     print('-------- FINISHED.')
 
@@ -235,6 +238,9 @@ def attack(backbone, head, testloader):
             return head(backbone(input), 'random')
         adversary = AutoAttack(forward, norm='Linf', eps=args.test_eps, version='standard', verbose=False)
 
+    else:
+        assert False, "Unknown attack : {}".format(args.attack_type)
+
     for test in testloader:
         image, label = test
         image, label = image.cuda(), label.cuda()
@@ -244,6 +250,8 @@ def attack(backbone, head, testloader):
             perturbed_image = adversary.perturb(image, label)
         elif args.attack_type == 'square' or args.attack_type == 'aa':
             perturbed_image = adversary.run_standard_evaluation(image, label, bs=image.size(0))
+        else:
+            assert False, "Unknown attack : {}".format(args.attack_type)
 
         # re-classify
         all_logits = head(backbone(perturbed_image), 'all')

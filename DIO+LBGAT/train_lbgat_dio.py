@@ -35,7 +35,7 @@ from advertorch.context import ctx_noparamgrad_and_eval
 torch.set_default_tensor_type(torch.FloatTensor)
 
 # ======== options ==============
-parser = argparse.ArgumentParser(description='Training Enhanced OMP')
+parser = argparse.ArgumentParser(description='Training DIO+LBGAT')
 # -------- file param. --------------
 parser.add_argument('--data_dir',type=str,default='/media/Disk1/KunFang/data/CIFAR10/',help='file path for data')
 parser.add_argument('--model_dir',type=str,default='./save/',help='file path for saving model')
@@ -178,7 +178,7 @@ def train_epoch(net, net_teacher, trainloader, optim, criterions, epoch, adversa
     # -------- preparing recorder
     batch_time = AverageMeter()
     losses, losses_ortho, losses_margin = AverageMeter(), AverageMeter(), AverageMeter()
-    losses_trades = AverageMeter()
+    losses_lbgat = AverageMeter()
     
 
     end = time.time()
@@ -224,18 +224,18 @@ def train_epoch(net, net_teacher, trainloader, optim, criterions, epoch, adversa
 
         # -------- record & print in termial
         losses.update(total_loss, b_data.size(0))
-        losses_trades.update(loss_lbgat.float().item(), b_data.size(0))
+        losses_lbgat.update(loss_lbgat.float().item(), b_data.size(0))
         losses_ortho.update(loss_ortho, b_data.size(0))
         losses_margin.update(loss_margin, b_data.size(0))
         # ----
         batch_time.update(time.time()-end)
         end = time.time()
 
-    writer.add_scalar('loss-trades', losses_trades.avg, epoch)
+    writer.add_scalar('loss-lbgat', losses_lbgat.avg, epoch)
     writer.add_scalar('loss-ortho', losses_ortho.avg, epoch)
     writer.add_scalar('loss-margin', losses_margin.avg, epoch)
     print('     Epoch %d/%d costs %fs.'%(epoch, args.epochs, batch_time.sum))
-    print('     LBGAT   loss = %f.'%losses_trades.avg)
+    print('     LBGAT   loss = %f.'%losses_lbgat.avg)
     print('     ORTHO   loss = %f.'%losses_ortho.avg)
     print('     MARGIN  loss = %f.'%losses_margin.avg)
 
