@@ -14,12 +14,12 @@ If our work is helpful for your research, please consider citing:
 ```
 
 ## Table of Content
-  - [1. Introduction](#1-introduction)
+  - [1. DIO in a few words](#1-dio-in-a-few-words)
   - [2. Requisite](#2-requisite)
   - [3. Training and attack](#3-training-and-attack)
   - [4. DIO and other defenses](#4-dio-and-other-defenses)
 
-## 1. Introduction
+## 1. DIO in a few words
 
 
 ## 2. Requisite
@@ -47,6 +47,8 @@ sh train.sh
 ```
 
 Detailed training settings (model, data set and whether to perform adversarial training) and hyper-parameters ($\alpha,\beta,\tau$ and $L$) have been specified in the `train.sh` script.
+
+A complete list of the chosen hyper-parameters for different models could be found in the Table 4 in the appendix of the paper.
 
 ### Attack
 
@@ -86,8 +88,6 @@ and
 sh attack_*_dio.sh
 ```
 in these folders to train and attack the corresponding equipped DIO models respectively.
-
-A complete list of the chosen hyper-parameters for different models could be found in the Table 4 in the appendix of the paper.
 
 ## 
 
