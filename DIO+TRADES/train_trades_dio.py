@@ -14,6 +14,7 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
 import os
+import sys
 import ast
 import copy
 import time
@@ -24,6 +25,7 @@ import numpy as np
 from utils import setup_seed
 from utils import get_datasets, get_model_dio
 from utils import AverageMeter, accuracy
+from utils import Logger
 
 from trades import trades_dio_loss
 
@@ -41,7 +43,7 @@ parser.add_argument('--logs_dir',type=str,default='./runs/',help='log path')
 parser.add_argument('--dataset',type=str,default='CIFAR10',help='data set name')
 parser.add_argument('--arch',type=str,default='vgg16',help='model architecture')
 # -------- training param. ----------
-parser.add_argument('--batch_size',type=int,default=256,help='batch size for training (default: 256)')    
+parser.add_argument('--batch_size',type=int,default=128,help='batch size for training (default: 256)')    
 parser.add_argument('--epochs',type=int,default=100,help='number of epochs to train (default: 100)')
 parser.add_argument('--save_freq',type=int,default=20,help='model save frequency (default: 20 epoch)')
 # -------- hyper parameters -------
@@ -69,6 +71,8 @@ if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+TR
     os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+TRADES',model_name))
 # ----
 args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,'DIO+TRADES',model_name)
+args.logs_path = os.path.join(args.logs_dir,args.dataset,args.arch,'DIO+TRADES',model_name,'train.log')
+sys.stdout = Logger(filename=args.logs_path,stream=sys.stdout)
 
 # -------- main function
 def main():

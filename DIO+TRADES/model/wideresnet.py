@@ -125,6 +125,10 @@ def wrn34x10(num_classes):
     model = WideResNet(34, num_classes, widen_factor=10)
     return model
 
+def wrn34x20(num_classes):
+    model = WideResNet(34, num_classes, widen_factor=20)
+    return model
+
 # if __name__ == '__main__':
 #     net = get_cifar10_wrn28_widen_factor(5).cuda()
 #     check_input = torch.randn(10,3,32,32).cuda()

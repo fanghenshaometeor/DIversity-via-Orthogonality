@@ -243,13 +243,20 @@ def wrn34x10(num_classes=10, num_classifiers=10):
     head = Ohead(embedding_size=64*10, num_classes=num_classes, num_classifiers=num_classifiers)
     return backbone, head
 
+def wrn34x20(num_classes=10, num_classifiers=10):
+    backbone = WideResNet(depth=34, widen_factor=20)
+    head = Ohead(embedding_size=128*10, num_classes=num_classes, num_classifiers=num_classifiers)
+    return backbone, head
+
 # if __name__ == '__main__':
 #     # backbone, head = wideresnet_28_5()
-#     backbone, head = wideresnet_34_10()
+#     # backbone, head = wideresnet_34_10()
+#     backbone, head = wrn34x20()
 #     print(backbone)
 #     print(head)
 #     check_input = torch.randn(10,3,32,32)
 #     embedding = backbone(check_input)
+#     print(embedding.size())
 #     all_logits = head(embedding, 'all')
 #     rad_logits = head(embedding, 'random')
 #     logits = head(embedding)

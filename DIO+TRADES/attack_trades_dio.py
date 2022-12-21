@@ -19,7 +19,7 @@ import argparse
 import numpy as np
 
 from utils import setup_seed
-from utils import get_datasets, get_model
+from utils import get_datasets, get_model_dio
 from utils import AverageMeter, accuracy
 from utils import Logger
 
@@ -73,7 +73,7 @@ def main():
 
     # ======== load network ========
     checkpoint = torch.load(args.model_path, map_location=torch.device("cpu"))
-    backbone, head = get_model(args)
+    backbone, head = get_model_dio(args)
     backbone, head = backbone.cuda(), head.cuda()
     backbone.load_state_dict(checkpoint['state_dict_backbone'])
     head.load_state_dict(checkpoint['state_dict_head'])
