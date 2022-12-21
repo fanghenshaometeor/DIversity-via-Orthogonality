@@ -84,11 +84,36 @@ def cifar100_dataloaders(data_dir, batch_size=256):
 
      return train_loader, test_loader
 
+def tiny_imagenet_dataloaders(data_dir, batch_size=128):
+
+     train_transform = transforms.Compose([
+          transforms.RandomCrop(64, padding=4),
+          transforms.RandomHorizontalFlip(),
+          transforms.ToTensor(),
+     ])
+
+     test_transform = transforms.Compose([
+          transforms.ToTensor(),
+     ])
+
+     train_path = os.path.join(data_dir, 'train')
+     val_path = os.path.join(data_dir, 'val')
+
+     train_set = ImageFolder(train_path, transform=train_transform)
+     test_set = ImageFolder(val_path, transform=test_transform)
+
+     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True)
+     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=6, pin_memory=True)
+
+     return train_loader, test_loader
+
 def get_datasets(args):
      if args.dataset == 'CIFAR10':
           return cifar10_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
      elif args.dataset == 'CIFAR100':
           return cifar100_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
+     elif args.dataset == 'TinyImageNet':
+          return tiny_imagenet_dataloaders(data_dir=args.data_dir, batch_size=args.batch_size)
      else:
           assert False, "Unknown dataset : {}".format(args.dataset)
 
@@ -105,6 +130,10 @@ def get_model(args):
           args.num_classes = 100
           dataset_normalization = NormalizeByChannelMeanStd(
                mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762])
+     elif args.dataset == 'TinyImageNet':
+          args.num_classes = 200
+          dataset_normalization = NormalizeByChannelMeanStd(
+               mean=[0.4802, 0.4481, 0.3975], std=[0.2302, 0.2265, 0.2262])
      else:
           assert False, "Unknown dataset : {}".format(args.dataset)
      

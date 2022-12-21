@@ -15,6 +15,7 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
 import os
+import sys
 import ast
 import copy
 import time
@@ -25,6 +26,7 @@ import numpy as np
 from utils import setup_seed
 from utils import get_datasets, get_model
 from utils import AverageMeter, accuracy
+from utils import Logger
 
 
 from advertorch.attacks import LinfPGDAttack
@@ -42,7 +44,8 @@ parser.add_argument('--logs_dir',type=str,default='./runs/',help='log path')
 parser.add_argument('--dataset',type=str,default='CIFAR10',help='data set name')
 parser.add_argument('--arch',type=str,default='vgg16',help='model architecture')
 # -------- training param. ----------
-parser.add_argument('--batch_size',type=int,default=256,help='batch size for training (default: 256)')    
+parser.add_argument('--batch_size',type=int,default=128,help='batch size for training (default: 256)')      
+parser.add_argument('--lr_base',type=float,default=0.1,help='learning rate (default: 0.1)')
 parser.add_argument('--epochs',type=int,default=100,help='number of epochs to train (default: 100)')
 parser.add_argument('--save_freq',type=int,default=20,help='model save frequency (default: 20 epoch)')
 # -------- hyper parameters -------
@@ -73,6 +76,8 @@ if args.adv_train == True:
         os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch+'-adv',model_name))
     # --------
     args.save_path = os.path.join(args.model_dir,args.dataset,args.arch+'-adv',model_name)
+    args.logs_path = os.path.join(args.logs_dir,args.dataset,args.arch+'-adv',model_name,'train.log')
+    sys.stdout = Logger(filename=args.logs_path,stream=sys.stdout)
 else:
     writer = SummaryWriter(os.path.join(args.logs_dir, args.dataset, args.arch, \
         'p-'+str(args.num_heads)+'-a-'+str(args.alpha)+'-b-'+str(args.beta)+ \
@@ -85,6 +90,8 @@ else:
         os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,model_name))
     # --------
     args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,model_name)
+    args.logs_path = os.path.join(args.logs_dir,args.dataset,args.arch,model_name,'train.log')
+    sys.stdout = Logger(filename=args.logs_path,stream=sys.stdout)
 
 # -------- main function
 def main():
@@ -107,7 +114,7 @@ def main():
 
     # ======== set criterions & optimizers
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD([{'params':backbone.parameters()},{'params':head.parameters()}], lr=0.1, momentum=0.9, weight_decay=5e-4)
+    optimizer = optim.SGD([{'params':backbone.parameters()},{'params':head.parameters()}], lr=args.lr_base, momentum=0.9, weight_decay=5e-4)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [75, 90], gamma=0.1)
 
     # ======== 
