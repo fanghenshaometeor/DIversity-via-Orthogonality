@@ -14,6 +14,7 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
 import os
+import sys
 import ast
 import copy
 import time
@@ -24,6 +25,7 @@ import numpy as np
 from utils import setup_seed
 from utils import get_datasets, get_model_dio
 from utils import AverageMeter, accuracy
+from utils import Logger
 
 from utils_awp import AdvWeightPerturb_DIO
 
@@ -73,6 +75,8 @@ if not os.path.exists(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+AW
     os.makedirs(os.path.join(args.model_dir,args.dataset,args.arch,'DIO+AWP',model_name))
 # ----
 args.save_path = os.path.join(args.model_dir,args.dataset,args.arch,'DIO+AWP',model_name)
+args.logs_path = os.path.join(args.logs_dir,args.dataset,args.arch,'DIO+AWP',model_name,'train.log')
+sys.stdout = Logger(filename=args.logs_path,stream=sys.stdout)
 
 # -------- main function
 def main():
@@ -102,7 +106,7 @@ def main():
     proxy_opt = optim.SGD([{'params':backbone_proxy.parameters()},
                         {'params':head_proxy.parameters()}], lr=0.01)
     awp_adversary = AdvWeightPerturb_DIO(model=[backbone,head], proxy=[backbone_proxy,head_proxy], proxy_optim=proxy_opt, gamma=args.awp_gamma)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [75,90], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [100,150], gamma=0.1)
 
     # ======== 
     args.train_eps /= 255.
