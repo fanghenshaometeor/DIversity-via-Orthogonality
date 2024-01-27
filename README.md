@@ -23,6 +23,14 @@ If our work is helpful for your research, please consider citing:
 
 ## 1. DIO in a few words
 
+Regarding that current adversairal defenses rely on the data augmentation effect from adversarial examples, we propose a novel defense method, namely DIO, that explores model properties to improve DNNs' robustness.
+The key points of DIO are listed.
+- Multiple paths augment DNNs for diverse features adaptive to adversarial inputs
+- An orthogonality loss and a margin-maximization loss jointly contribute to DNNs’ diversity
+- DIO outperforms the non-data-augmented adversarial defenses and is compatible with the data-augmented techniques, leading to improved robustness.
+
+
+![avatar](./pics/scheme.png)
 
 ## 2. Requisite
 
@@ -50,7 +58,7 @@ sh train.sh
 
 Detailed training settings (model, data set and whether to perform adversarial training) and hyper-parameters ($\alpha,\beta,\tau$ and $L$) have been specified in the `train.sh` script.
 
-A complete list of the chosen hyper-parameters for different models could be found in the Table 4 in the appendix of the paper.
+A complete list of the chosen hyper-parameters for different models could be found in the Table 6 in the appendix of the paper.
 
 ### Attack
 
